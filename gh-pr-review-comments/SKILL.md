@@ -15,8 +15,38 @@ Retrieve and reply to inline code review comments on GitHub PRs using the `gh` C
 |------|---------|
 | View PR info | `gh pr view` |
 | View general comments | `gh pr view --comments` |
-| List inline review comments | `gh api repos/{owner}/{repo}/pulls/{pr}/comments` |
-| Reply to review comment | `gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies -f body="..."` |
+| List inline review comments | `./list-review-comments.sh owner/repo 49` |
+| List comment IDs (compact) | `./list-review-comment-ids.sh owner/repo 49` |
+| Reply to review comment | `./reply-to-comment.sh owner/repo 49 123456 "Fixed."` |
+
+## Scripts
+
+### list-review-comments.sh
+
+List all inline code review comments with full details.
+
+```bash
+./list-review-comments.sh <owner/repo> <pr_number>
+
+# If in a git repo, owner/repo can be auto-detected:
+./list-review-comments.sh <pr_number>
+```
+
+### list-review-comment-ids.sh
+
+List comment IDs in compact format for scripting (output: `id|path|line|author`).
+
+```bash
+./list-review-comment-ids.sh <owner/repo> <pr_number>
+```
+
+### reply-to-comment.sh
+
+Reply to an inline review comment in its thread.
+
+```bash
+./reply-to-comment.sh <owner/repo> <pr_number> <comment_id> "<body>"
+```
 
 ## Retrieving Review Comments
 
@@ -27,15 +57,12 @@ gh pr view --comments
 
 **Inline code review comments** (on specific lines):
 ```bash
-# Get all review comments with key fields
-gh api repos/{owner}/{repo}/pulls/{pr}/comments \
-  --jq '.[] | "ID: \(.id)\nFile: \(.path)\nLine: \(.line // .original_line)\nAuthor: \(.user.login)\nBody: \(.body)\n---"'
+./list-review-comments.sh owner/repo 49
 ```
 
 **Get comment IDs for replies**:
 ```bash
-gh api repos/{owner}/{repo}/pulls/{pr}/comments \
-  --jq '.[] | "\(.id)|\(.path)|\(.line // .original_line)|\(.user.login)"'
+./list-review-comment-ids.sh owner/repo 49
 ```
 
 ## Replying to Review Comments
@@ -43,8 +70,7 @@ gh api repos/{owner}/{repo}/pulls/{pr}/comments \
 Reply in the comment thread (not as top-level PR comment):
 
 ```bash
-gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
-  -f body="Fixed. Moved to CSS class."
+./reply-to-comment.sh owner/repo 49 123456 "Fixed. Moved to CSS class."
 ```
 
 **Key fields in response**: `id`, `path`, `line`, `original_line`, `body`, `user.login`, `in_reply_to_id`
@@ -56,18 +82,16 @@ gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
 gh pr view --json number
 
 # 2. List review comments
-gh api repos/owner/repo/pulls/49/comments \
-  --jq '.[] | "ID:\(.id) File:\(.path):\(.line) Author:\(.user.login)\n\(.body)\n---"'
+./list-review-comments.sh owner/repo 49
 
 # 3. Reply to each comment
-gh api repos/owner/repo/pulls/49/comments/123456/replies \
-  -f body="Fixed in commit abc123."
+./reply-to-comment.sh owner/repo 49 123456 "Fixed in commit abc123."
 ```
 
 ## Common Mistakes
 
 | Mistake | Fix |
 |---------|-----|
-| Using `gh pr comment` for replies | Use `gh api .../comments/{id}/replies` for threaded replies |
-| Missing `line` field (null) | Use `original_line` as fallback: `.line // .original_line` |
-| Confusing PR comments vs review comments | PR comments = `gh pr view --comments`, Review comments = API endpoint |
+| Using `gh pr comment` for replies | Use `reply-to-comment.sh` for threaded replies |
+| Missing `line` field (null) | Scripts handle this with `original_line` fallback |
+| Confusing PR comments vs review comments | PR comments = `gh pr view --comments`, Review comments = scripts |
