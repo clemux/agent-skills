@@ -20,7 +20,7 @@ Systematic workflow for diagnosing, fixing, and reporting on slow Python/pytest 
 
 3. **Check for pyinstrument** — If not installed, ask the user before adding it:
    ```bash
-   uv run pip list | grep pyinstrument
+   uv pip list | grep pyinstrument
    # If missing, ask before running: uv add --dev pyinstrument
    ```
 
