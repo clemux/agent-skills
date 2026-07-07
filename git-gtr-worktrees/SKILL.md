@@ -23,15 +23,17 @@ git gtr list
 git gtr config list
 ```
 
-Read `.gtrconfig` when it exists. Treat its configured worktree directory, copied files, post-create hooks, AI command, and editor command as repo-local facts. Do not assume settings from another repo apply.
+Read `.gtrconfig` when it exists. Treat its configured worktree directory, copied files, hooks, AI command, editor command, default remote, and default branch as repo-local facts. Do not assume settings from another repo apply.
+
+Executable hooks and `.gtrconfig` editor/AI defaults are ignored until trusted. If `git gtr` warns that `.gtrconfig` entries are untrusted, inspect the commands and ask before running `git gtr trust`.
 
 ## Choose The Base
 
 Choose the base branch deliberately:
 
 - Use `--from-current` when the new worktree should build on the current branch.
-- Use `--from main` or the repo's primary branch for an independent feature in repos without an `origin` remote.
-- Use the default only when the repo has a healthy `origin/HEAD` or configured default branch that resolves locally.
+- Use `--from main` or the repo's primary branch for an independent feature when local refs are enough.
+- The default base uses `gtr.defaultRemote`/`gtr.defaultBranch` when configured, otherwise remote HEAD, remote `main`/`master`, then `main`. Use an explicit `--from <ref>` when the repo has unusual remotes, missing remote refs, or a base that should not be inferred.
 
 Use `--no-fetch` when network access is unnecessary or unavailable.
 
@@ -51,7 +53,9 @@ git gtr new feature-name --from main --no-fetch
 cd "$(git gtr go feature-name)"
 ```
 
-If the repo's `.gtrconfig` defines post-create hooks and they were skipped or failed, run only the relevant hook commands for that repo after inspecting them. For example, run `mise trust --yes mise.toml` only when the repo uses `mise.toml` and the hook or local setup expects it.
+Use `--yes` for automation only when all inputs are explicit. Use `--no-hooks` only when skipping repo setup is acceptable; otherwise inspect and trust the `.gtrconfig` commands before relying on hooks.
+
+If post-create hooks were skipped or failed, run only the relevant hook commands for that repo after inspecting them. For example, run `mise trust --yes mise.toml` only when the repo uses `mise.toml` and the hook or local setup expects it.
 
 ## Verify Before Editing
 
@@ -91,6 +95,34 @@ git gtr editor feature-name
 
 Use `git gtr config list` first when the configured AI or editor command matters. Do not assume the command launches Claude, Codex, or a specific editor unless the current repo config says so.
 
+Override configured tools only when needed:
+
+```bash
+git gtr editor feature-name --editor vscode
+git gtr ai feature-name --ai codex -- --model gpt-5
+```
+
+## Run Commands
+
+Run commands inside a worktree without changing shell state:
+
+```bash
+git gtr run feature-name npm test
+git gtr run 1 git status --short
+```
+
+Use `git gtr run` for one-off verification. Use `cd "$(git gtr go feature-name)"` when you will make multiple edits or run a longer workflow.
+
+## Rename
+
+Rename a worktree directory and its local branch together:
+
+```bash
+git gtr mv old-name new-name --yes
+```
+
+`git gtr mv` also has the alias `git gtr rename`. It does not rename remote branches; follow the command's remote-branch guidance before pushing.
+
 ## Parallel Work
 
 For multiple worktrees on the same branch, use a descriptive suffix:
@@ -115,12 +147,13 @@ git branch --merged main
 Then remove the selected worktree:
 
 ```bash
-git gtr rm feature-name
+git gtr rm feature-name --yes
 ```
 
-Use `--delete-branch` only when the user explicitly requested branch deletion. In non-interactive tool runs, `git gtr rm feature-name --delete-branch` may still prompt and leave the branch in place. Always verify afterward:
+Use `--force` only when the user accepts removing a dirty worktree or bypassing a failing pre-remove hook. Use `--delete-branch` only when the user explicitly requested branch deletion; confirmed branch deletion uses `git branch -D`, so it is not merged-only safe cleanup. In non-interactive tool runs, combine it with `--yes`, then verify afterward:
 
 ```bash
+git gtr rm feature-name --delete-branch --yes
 git gtr list
 git branch --list feature-name
 ```
@@ -130,6 +163,16 @@ If the worktree is gone, the branch is listed, and `git branch --merged main` sh
 ```bash
 git branch -d feature-name
 ```
+
+Use `git gtr clean` for stale registry entries or empty worktree directories. Use PR/MR cleanup only after previewing matches:
+
+```bash
+git gtr clean
+git gtr clean --merged --closed --dry-run
+git gtr clean --merged --closed --yes
+```
+
+Plain `clean` may prune Git worktree metadata and remove empty directories. `clean --merged` and `clean --closed` delete matching branches too, may fall back to force-deleting those branches, require the provider CLI (`gh` or `glab`), and may fetch from `origin`.
 
 ## Troubleshooting
 
