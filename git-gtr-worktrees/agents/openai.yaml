@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git GTR Worktrees"
+  short_description: "Use git gtr for repo worktrees"
+  default_prompt: "Use $git-gtr-worktrees to create and manage a focused worktree for this task."
