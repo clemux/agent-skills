@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Mode TDD"
+  short_description: "TDD-first planning: tests, implement, verify, review."
+  default_prompt: "In Plan mode, structure steps as TDD: write/update failing test, implement, run tests, run review skill, then commit."
