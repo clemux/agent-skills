@@ -1,5 +1,5 @@
 ---
-name: S3 Troubleshooting
+name: s3-troubleshooting
 description: This skill should be used when the user asks to "debug S3 uploads", "fix S3 access denied", "troubleshoot S3 presigned POST", "investigate S3 403 error", "design S3 upload flow", "configure S3 bucket policy", or when working with S3-compatible object storage (AWS S3, Scaleway, MinIO) and encountering permission, policy, or presigned URL issues.
 ---
 
@@ -31,6 +31,7 @@ When facing S3 access issues, check in this order:
 S3 bucket policies require **two resource entries**: one for the bucket itself and one for objects within it. A policy granting access only to the bucket resource silently denies all object operations (PutObject, GetObject, DeleteObject).
 
 **Broken:**
+
 ```json
 {
   "Effect": "Allow",
@@ -40,6 +41,7 @@ S3 bucket policies require **two resource entries**: one for the bucket itself a
 ```
 
 **Fixed:**
+
 ```json
 {
   "Effect": "Allow",
@@ -60,6 +62,7 @@ For detailed patterns, see **`references/bucket-policy-patterns.md`**.
 - Scaleway and other S3-compatible providers may reject them with `AccessDenied`
 
 **Broken:**
+
 ```python
 conditions = [
     {"bucket": bucket_name},      # duplicate — boto3 adds this
@@ -75,6 +78,7 @@ response = client.generate_presigned_post(
 ```
 
 **Fixed:**
+
 ```python
 conditions = [
     {"Content-Type": mime_type},
@@ -132,6 +136,7 @@ echo 'BASE64_POLICY' | base64 -d | python3 -m json.tool
 ```
 
 Check for:
+
 - Duplicate `bucket` or `key` conditions
 - Correct expiration timestamp
 - Matching credential region
