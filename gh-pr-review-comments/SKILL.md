@@ -15,15 +15,15 @@ Retrieve and reply to inline code review comments on GitHub PRs using the `gh` C
 |------|---------|
 | View PR info | `gh pr view` |
 | View general comments | `gh pr view --comments` |
-| List inline review comments | `./list-review-comments.sh owner/repo 49` |
-| List comment IDs (compact) | `./list-review-comment-ids.sh owner/repo 49` |
+| List unresolved inline review comments | `./list-review-comments.sh owner/repo 49` |
+| List unresolved comment IDs (compact) | `./list-review-comment-ids.sh owner/repo 49` |
 | Reply to review comment | `./reply-to-comment.sh owner/repo 49 123456 "Fixed."` |
 
 ## Scripts
 
 ### list-review-comments.sh
 
-List all inline code review comments with full details.
+List unresolved inline code review comments with full details. Resolved review threads are ignored.
 
 ```bash
 ./list-review-comments.sh <owner/repo> <pr_number>
@@ -34,7 +34,7 @@ List all inline code review comments with full details.
 
 ### list-review-comment-ids.sh
 
-List comment IDs in compact format for scripting (output: `id|path|line|author`).
+List unresolved comment IDs in compact format for scripting (output: `id|path|line|author`). Resolved review threads are ignored.
 
 ```bash
 ./list-review-comment-ids.sh <owner/repo> <pr_number>
@@ -55,12 +55,12 @@ Reply to an inline review comment in its thread.
 gh pr view --comments
 ```
 
-**Inline code review comments** (on specific lines):
+**Unresolved inline code review comments** (on specific lines):
 ```bash
 ./list-review-comments.sh owner/repo 49
 ```
 
-**Get comment IDs for replies**:
+**Get unresolved comment IDs for replies**:
 ```bash
 ./list-review-comment-ids.sh owner/repo 49
 ```
@@ -133,7 +133,7 @@ This workflow prevents the situation where multiple changes get mixed together a
 # 1. Get PR number
 gh pr view --json number -q .number
 
-# 2. List review comments
+# 2. List unresolved review comments
 ./list-review-comments.sh owner/repo 49
 
 # 3. Evaluate each comment (read code, assess validity, confirm with user)
