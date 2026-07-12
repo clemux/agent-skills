@@ -1,5 +1,5 @@
 ---
-name: issues
+name: gh-issues
 description: GitHub issue management using GitHub CLI. Trigger when user wants to list issues ("show open issues"), view issue details ("view issue 456"), create issues ("create an issue", "file a bug"), or edit/close issues ("close issue", "add label to issue").
 ---
 
