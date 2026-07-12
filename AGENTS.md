@@ -4,6 +4,11 @@ This repository is the single source of truth for shared agent skills. Harnesses
 Codex, and the neutral `~/.agents/skills` root) reach each skill through a symlink back to this
 repo.
 
+Not every skill goes to every harness. `install.conf` maps each skill to the roots that should
+load it, and `install.sh` makes the roots match that table — linking the roots a skill targets and
+removing it from the roots it does not. A skill missing from `install.conf` is an error rather than
+a default, because leaving "where does this go?" implicit is how the roots drifted apart before.
+
 ## The rule that matters
 
 **Never edit a skill through a harness path, and never copy a skill into a harness directory.**
@@ -24,10 +29,14 @@ Run `./install.sh --dry-run` to see which skills are properly linked and which a
 ## Working here
 
 - A skill is a directory with `SKILL.md` (frontmatter: `name`, `description`) plus optional
-  `scripts/`, `references/`, `assets/`.
+  `scripts/`, `references/`, `assets/`. The `name` must match the directory name.
 - The `description` frontmatter is the sole trigger mechanism — it must say what the skill does
   *and* the situations that should invoke it. A skill that never triggers is dead code.
-- New skills need `./install.sh` before any harness can see them.
+- New skills need an `install.conf` entry and a run of `./install.sh` before any harness can see
+  them.
+- A bundled script must be runnable from any harness. Document the plain command it wraps, and never
+  depend on a harness-specific variable to find it — a path that only resolves in one harness is a
+  skill that silently does nothing in the others.
 - Treat a finished skill change as commit-worthy in its own right: verify it, review the diff,
   commit. Do not leave a working skill uncommitted — it then exists only on one machine, which is
   the same failure mode as drift wearing a different hat.
