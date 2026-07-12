@@ -9,10 +9,10 @@ A retrospective turns a session that is about to be forgotten into durable, owne
 lessons the user will actually re-read, and follow-up work that has a home. The session transcript
 disappears; the vault does not.
 
-This skill runs in Claude Code (`/retro`), Codex (`$retro`), and other harnesses. One source of
-truth lives at `~/.agents/skills/retro/`, symlinked into each harness's skill directory. The core
-workflow below is harness-independent; the **Harness adapters** section at the end says how to do
-each harness-specific step.
+This skill runs in Claude Code (`/retro`), Codex (`$retro`), and other harnesses. The source of truth
+is `~/dev/agent-skills/retro/`, symlinked into each harness's skill directory. The core workflow
+below is harness-independent; the **Harness adapters** section at the end says how to do each
+harness-specific step.
 
 ## What makes a retro good (read this before starting)
 
@@ -99,6 +99,43 @@ batching at the end) means the decision is fresh and the retro note can link to 
 
 If work happened this session that no task owns, create or promote a task for it before closing the
 retro — a retrospective should not be the only record of substantive work.
+
+#### Record the item here; execute it somewhere else
+
+There is a hard line between *recording* an item and *doing* it.
+
+**Recording belongs inline** — creating the task, filing the capture, adding the link. It is cheap,
+and the note comes out good precisely because you write it with the evidence still in hand.
+
+**Executing belongs in a fresh session.** The moment an item turns into "now let's build the thing",
+it is a new piece of work with its own shape, and the retro context is close to the worst context to
+do it in: it is full of the previous task's detritus, none of which helps, and all of which gets
+re-read on every turn. Worse, the retro stalls — the remaining agenda items sit pending while the
+detour runs long, and items the user never got to are items the retro failed to surface.
+
+So when the user starts pulling on an item, name it and offer the fork:
+
+> That's a fresh-session job — I've captured it as `obs:XXX-TSK-thing`. Let's finish the agenda and
+> you can start it clean.
+
+The handoff is free, because step 4 already produced the artifact a cold session needs: the task
+note. Offer the launch command at the *end* of the retro, once the agenda is done — pointing at the
+repo the work actually lives in, not the one the retro happened to run in:
+
+```bash
+# Claude Code
+cd <repo> && claude "Work on obs:XXX-TSK-thing. Resolve it with the oaw skill, read the task note, and implement it."
+
+# Codex
+cd <repo> && codex "Work on obs:XXX-TSK-thing. Resolve it with the oaw skill, read the task note, and implement it."
+```
+
+Both CLIs take a positional prompt and open an interactive session with it already loaded, so the
+user lands in a fresh context that is briefed and ready.
+
+The exception is a fix small enough to be indistinguishable from recording it — a one-line
+correction, a link, a typo. Forking for those costs more than doing them. The test is whether the
+work has its own shape: if you would need to explain it to a fresh session, it belongs in one.
 
 ### 5. Write the retrospective note
 
