@@ -9,6 +9,14 @@ load it, and `install.sh` makes the roots match that table — linking the roots
 removing it from the roots it does not. A skill missing from `install.conf` is an error rather than
 a default, because leaving "where does this go?" implicit is how the roots drifted apart before.
 
+## The working tree is the deployed state
+
+Because the harness roots symlink *into this checkout*, whatever is checked out right now is what
+every harness loads. Switching branches silently changes the skills your agents are running — no
+error, no warning, just different behaviour. So keep skill work short-lived and merge it promptly,
+and remember when debugging a skill that behaves unexpectedly that the first thing to check is which
+branch this repo is on.
+
 ## The rule that matters
 
 **Never edit a skill through a harness path, and never copy a skill into a harness directory.**
