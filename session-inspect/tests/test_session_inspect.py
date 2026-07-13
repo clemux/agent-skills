@@ -233,11 +233,23 @@ class SessionInspectTests(unittest.TestCase):
             },
             "content": [],
         }
+        synthetic_error = {
+            "id": "synthetic-error",
+            "model": "<synthetic>",
+            "usage": {
+                "input_tokens": 0,
+                "cache_creation_input_tokens": 0,
+                "cache_read_input_tokens": 0,
+                "output_tokens": 0,
+            },
+            "content": [],
+        }
         write_jsonl(
             transcript,
             [
                 {"type": "assistant", "message": sonnet},
                 {"type": "assistant", "message": sonnet},
+                {"type": "assistant", "message": synthetic_error},
                 {"type": "assistant", "message": opus},
             ],
         )
@@ -268,6 +280,10 @@ class SessionInspectTests(unittest.TestCase):
                 },
             },
         )
+        args = MODULE.build_parser().parse_args(["inspect", "unused"])
+        rendered = MODULE.render_result(result, args)
+        self.assertIn("latest model: claude-opus-4-8", rendered)
+        self.assertNotIn("<synthetic>", rendered)
 
     def test_heredoc_decoy_does_not_override_raw_exec_flags(self) -> None:
         command = """prompt=$(cat <<'PROMPT'

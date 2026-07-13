@@ -36,6 +36,10 @@ cache reads and cache-creation writes separately from native input, so
 reasoning from normal output; report both subfields as unavailable unless a
 usage record explicitly provides a reasoning/thinking counter.
 
+Omit all-zero model buckets such as Claude API error messages labeled
+`<synthetic>`. The top-level model is the latest observed model, not necessarily
+the only model used in the session.
+
 For nested `codex-runner` agents, discover `agent-*.meta.json` beside the parent
 session's artifact directory. Parse only the actual Codex invocation line from
 the runner's Bash commands; ignore heredoc bodies. Explicit `-m`/`--model`,

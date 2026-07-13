@@ -399,6 +399,7 @@ def inspect_codex(path: Path) -> dict[str, Any]:
             dict(usage), harness="codex", available=token_fields_by_model.get(model, set())
         )
         for model, usage in sorted(tokens_by_model.items())
+        if usage.get("total_tokens", 0) > 0
     }
     result["started_at"] = first.isoformat() if first else None
     result["ended_at"] = last.isoformat() if last else None
@@ -521,6 +522,7 @@ def inspect_claude(path: Path, codex_root: Path, codex_home: Path, include_deleg
             dict(usage), harness="claude", available=token_fields_by_model.get(model, set())
         )
         for model, usage in sorted(tokens_by_model.items())
+        if usage.get("total_tokens", 0) > 0
     }
     result["started_at"] = first.isoformat() if first else None
     result["ended_at"] = last.isoformat() if last else None
@@ -769,7 +771,7 @@ def render_result(result: dict[str, Any], args: argparse.Namespace) -> str:
         f"{view['harness']} session {view.get('session_id') or 'unknown'}",
         f"path: {view['path']}",
         f"cwd: {view.get('cwd') or 'unavailable'}",
-        f"model: {view.get('model') or 'unavailable'} | effort: {view.get('effort') or 'unavailable'}",
+        f"latest model: {view.get('model') or 'unavailable'} | effort: {view.get('effort') or 'unavailable'}",
         f"time: {view.get('started_at') or 'unavailable'} -> {view.get('ended_at') or 'unavailable'} ({view.get('duration_seconds') if view.get('duration_seconds') is not None else 'unavailable'}s)",
         "messages: " + " ".join(f"{key}={value}" for key, value in view["messages"].items()),
         "tokens: " + (" ".join(f"{key}={value}" for key, value in view["tokens"].items()) or "unavailable"),
