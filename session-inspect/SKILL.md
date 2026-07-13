@@ -17,17 +17,19 @@ The neutral path works for every harness after installation. The command searche
 `~/.codex/sessions` and `~/.claude/projects`; use `--codex-root` or `--claude-root`
 for fixtures or archives.
 
-Default human output is a four- or five-line summary designed to be relayed
-directly without reformatting. Start with it. Use `--verbose` only when capped
-per-model details and command/read/skill lists are needed. `--all` implies
-verbose output and removes those caps; use `--full-commands` only when exact
-command bodies are necessary.
+Default human output is a four- or five-line summary. Start with it, then present
+it in the form most useful for the current context: relay it verbatim when raw
+output is requested, or reformat it into a concise explanation or table when
+interpretation would help. Preserve reported values, distinguish script output
+from inference, and highlight discrepancies or unavailable data. Use `--verbose`
+only when capped per-model details and command/read/skill lists are needed.
+`--all` implies verbose output and removes those caps; use `--full-commands` only
+when exact command bodies are necessary.
 
 Use `--json` only for structured downstream processing. It keeps the existing
 capped schema unless combined with `--all`; when only a few fields are needed,
 filter at the command boundary (for example with `jq`) before returning output
-to model context. Do not load verbose or JSON output merely to rewrite the
-compact report in prose.
+to model context. Do not request verbose or JSON output merely for presentation.
 
 Compact session diffs report direct, child, and inclusive token deltas plus
 counts of command, read-path, and skill changes. Use `--verbose` for per-model
