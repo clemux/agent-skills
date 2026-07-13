@@ -1,0 +1,4 @@
+interface:
+  display_name: "Session Inspect"
+  short_description: "Inspect local Codex and Claude session history"
+  default_prompt: "Use $session-inspect to inspect or compare local Codex and Claude Code sessions without writing or using the network."
