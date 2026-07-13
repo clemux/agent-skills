@@ -14,7 +14,9 @@ The inspector streams rollout JSONL and recognizes:
 
 For per-model usage, attribute the delta between consecutive cumulative token
 snapshots to the active `turn_context.model`. Codex records cached input reads
-and separates reasoning from total output; it does not record cache writes.
+as a subset of native `input_tokens`, and separates reasoning from total output;
+it does not record cache writes. `uncached_input_tokens` subtracts cache reads
+from native input so uncached input + cache reads + output reconciles to total.
 
 Both direct `exec_command` calls and current JavaScript-orchestrated `exec` calls
 are supported.
@@ -29,7 +31,8 @@ Recognize `Bash`, `Read`, and `Skill` tool blocks for commands, read paths, and
 skills.
 
 Group token usage by the deduplicated message's `message.model`. Claude records
-cache reads and cache-creation writes. Current transcripts do not separate
+cache reads and cache-creation writes separately from native input, so
+`uncached_input_tokens` equals native input. Current transcripts do not separate
 reasoning from normal output; report both subfields as unavailable unless a
 usage record explicitly provides a reasoning/thinking counter.
 

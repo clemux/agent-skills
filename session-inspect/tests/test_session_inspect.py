@@ -66,6 +66,7 @@ class SessionInspectTests(unittest.TestCase):
             {
                 "gpt-5.6-luna": {
                     "input_tokens": 60,
+                    "uncached_input_tokens": 30,
                     "cache_read_tokens": 30,
                     "cache_write_tokens": None,
                     "output_tokens": 20,
@@ -75,6 +76,7 @@ class SessionInspectTests(unittest.TestCase):
                 },
                 "gpt-5.6-terra": {
                     "input_tokens": 100,
+                    "uncached_input_tokens": 60,
                     "cache_read_tokens": 40,
                     "cache_write_tokens": None,
                     "output_tokens": 10,
@@ -85,6 +87,13 @@ class SessionInspectTests(unittest.TestCase):
             },
         )
         self.assertEqual(sum(row["total_tokens"] for row in result["tokens_by_model"].values()), 190)
+        self.assertEqual(
+            sum(
+                row["uncached_input_tokens"] + row["cache_read_tokens"] + row["output_tokens"]
+                for row in result["tokens_by_model"].values()
+            ),
+            190,
+        )
 
     def test_codex_interim_counter_regressions_do_not_double_count(self) -> None:
         rollout = self.codex_root / "rollout-regression.jsonl"
@@ -239,6 +248,7 @@ class SessionInspectTests(unittest.TestCase):
             {
                 "claude-opus-4-8": {
                     "input_tokens": 3,
+                    "uncached_input_tokens": 3,
                     "cache_read_tokens": 7,
                     "cache_write_tokens": 5,
                     "output_tokens": 8,
@@ -248,6 +258,7 @@ class SessionInspectTests(unittest.TestCase):
                 },
                 "claude-sonnet-5": {
                     "input_tokens": 10,
+                    "uncached_input_tokens": 10,
                     "cache_read_tokens": 20,
                     "cache_write_tokens": 4,
                     "output_tokens": 6,

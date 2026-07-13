@@ -109,6 +109,7 @@ def usage_delta(current: dict[str, Any], previous: dict[str, Any]) -> dict[str, 
 def normalized_model_tokens(
     usage: dict[str, int], *, harness: str, available: set[str]
 ) -> dict[str, int | None]:
+    provider_input = int(usage.get("input_tokens", 0))
     output = int(usage.get("output_tokens", 0))
     reasoning_key = "reasoning_output_tokens"
     reasoning = int(usage.get(reasoning_key, 0)) if reasoning_key in available else None
@@ -116,11 +117,14 @@ def normalized_model_tokens(
     if harness == "codex":
         cache_read = int(usage.get("cached_input_tokens", 0)) if "cached_input_tokens" in available else None
         cache_write = None
+        uncached_input = max(0, provider_input - cache_read) if cache_read is not None else None
     else:
         cache_read = int(usage.get("cache_read_input_tokens", 0))
         cache_write = int(usage.get("cache_creation_input_tokens", 0))
+        uncached_input = provider_input
     return {
-        "input_tokens": int(usage.get("input_tokens", 0)),
+        "input_tokens": provider_input,
+        "uncached_input_tokens": uncached_input,
         "cache_read_tokens": cache_read,
         "cache_write_tokens": cache_write,
         "output_tokens": output,
@@ -778,6 +782,7 @@ def render_result(result: dict[str, Any], args: argparse.Namespace) -> str:
         lines.append("tokens by model:")
         token_fields = (
             "input_tokens",
+            "uncached_input_tokens",
             "cache_read_tokens",
             "cache_write_tokens",
             "output_tokens",
