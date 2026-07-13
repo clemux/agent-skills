@@ -1,7 +1,9 @@
 import importlib.util
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 
@@ -111,8 +113,93 @@ class SessionInspectTests(unittest.TestCase):
             ],
         )
         result = MODULE.inspect_codex(rollout)
+        self.assertEqual(result["tokens"]["total_tokens"], 135)
         self.assertEqual(result["tokens_by_model"]["gpt-5.6-sol"]["total_tokens"], 135)
         self.assertEqual(result["tokens_by_model"]["gpt-5.6-sol"]["cache_read_tokens"], 75)
+        self.assertEqual(result["token_snapshot_stability"]["rejected_regressions"], 1)
+
+    def test_codex_active_rollout_holds_high_water_then_accepts_recovery(self) -> None:
+        rollout = self.codex_root / "rollout-live-regression.jsonl"
+        records = [
+            {"type": "turn_context", "payload": {"model": "gpt-5.6-sol"}},
+            {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 40_000_000, "cached_input_tokens": 36_000_000, "output_tokens": 530_000, "reasoning_output_tokens": 100_000, "total_tokens": 40_530_000}}}},
+            {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 7_000_000, "cached_input_tokens": 6_000_000, "output_tokens": 420_000, "reasoning_output_tokens": 80_000, "total_tokens": 7_420_000}}}},
+        ]
+        write_jsonl(rollout, records)
+
+        regressed = MODULE.inspect_codex(rollout)
+
+        self.assertEqual(regressed["tokens"]["total_tokens"], 40_530_000)
+        self.assertEqual(regressed["tokens_by_model"]["gpt-5.6-sol"]["total_tokens"], 40_530_000)
+        self.assertEqual(
+            regressed["token_snapshot_stability"],
+            {
+                "policy": "monotonic-high-water",
+                "observed": 2,
+                "accepted": 1,
+                "rejected_regressions": 1,
+                "regression_fields": {
+                    "cached_input_tokens": 1,
+                    "input_tokens": 1,
+                    "output_tokens": 1,
+                    "reasoning_output_tokens": 1,
+                    "total_tokens": 1,
+                },
+                "stable_total_tokens": 40_530_000,
+                "latest_observed_total_tokens": 7_420_000,
+            },
+        )
+        compact_args = MODULE.build_parser().parse_args(["inspect", "unused"])
+        compact = MODULE.render_result(regressed, compact_args)
+        self.assertIn("tokens direct=40.53M", compact)
+        self.assertIn("warning token-snapshot-regressions=1", compact)
+        self.assertNotIn("\ninsights\n", compact)
+
+        records.append(
+            {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 41_000_000, "cached_input_tokens": 37_000_000, "output_tokens": 820_000, "reasoning_output_tokens": 120_000, "total_tokens": 41_820_000}}}}
+        )
+        write_jsonl(rollout, records)
+        recovered = MODULE.inspect_target(
+            str(rollout), self.codex_root, self.claude_root, self.codex_home
+        )
+
+        self.assertEqual(recovered["tokens"]["total_tokens"], 41_820_000)
+        self.assertEqual(recovered["tokens_by_model"]["gpt-5.6-sol"]["total_tokens"], 41_820_000)
+        self.assertEqual(recovered["token_snapshot_stability"]["accepted"], 2)
+        self.assertEqual(recovered["token_snapshot_stability"]["latest_observed_total_tokens"], 41_820_000)
+        insights = MODULE.build_insights(recovered)
+        self.assertEqual(insights["child_token_share"]["percent"], 0.0)
+        self.assertEqual(insights["cache_read_ratio"]["percent"], 90.2)
+        self.assertEqual(insights["unresolved_children"]["count"], 0)
+        self.assertEqual(insights["unavailable_counters"], ["direct.cache_write_tokens"])
+        insight_args = MODULE.build_parser().parse_args(["inspect", "unused", "--insights"])
+        rendered = MODULE.render_result(recovered, insight_args)
+        self.assertIn("\ninsights\n", rendered)
+        self.assertIn("- token-snapshots: policy=monotonic-high-water", rendered)
+
+        cli_args = [
+            "--codex-root",
+            str(self.codex_root),
+            "--claude-root",
+            str(self.claude_root),
+            "--codex-home",
+            str(self.codex_home),
+            "inspect",
+            str(rollout),
+            "--json",
+        ]
+        default_stdout = io.StringIO()
+        with redirect_stdout(default_stdout):
+            self.assertEqual(MODULE.main(cli_args), 0)
+        self.assertNotIn("insights", json.loads(default_stdout.getvalue()))
+
+        insight_stdout = io.StringIO()
+        with redirect_stdout(insight_stdout):
+            self.assertEqual(MODULE.main([*cli_args, "--insights"]), 0)
+        self.assertEqual(
+            json.loads(insight_stdout.getvalue())["insights"]["cache_read_ratio"]["percent"],
+            90.2,
+        )
 
     def test_current_codex_js_exec_is_decoded(self) -> None:
         thread = "019f0000-0000-7000-8000-000000000002"
@@ -397,6 +484,13 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         self.assertIn("children resolved=1 (native=1 shell=0) unresolved=1", compact)
         args = MODULE.build_parser().parse_args(["inspect", "unused", "--verbose"])
         self.assertIn("child sessions: resolved=1 unresolved=1 child_total=25 inclusive_total=55", MODULE.render_result(result, args))
+        insights = MODULE.build_insights(result)
+        self.assertEqual(insights["child_token_share"]["percent"], 45.5)
+        self.assertEqual(insights["cache_read_ratio"]["percent"], 40.0)
+        self.assertEqual(
+            insights["unresolved_children"],
+            {"count": 1, "inclusive_totals_exclude_unresolved": True},
+        )
 
     def test_json_view_remains_capped_unless_all_is_requested(self) -> None:
         result = {

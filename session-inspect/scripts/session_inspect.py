@@ -299,6 +299,7 @@ def base_result(path: Path, harness: str) -> dict[str, Any]:
         "messages": {"user": 0, "assistant": 0},
         "tokens": {},
         "tokens_by_model": {},
+        "token_snapshot_stability": {},
         "tool_counts": {},
         "tool_output_bytes": 0,
         "max_tool_output_bytes": 0,
@@ -321,30 +322,45 @@ def inspect_codex(path: Path) -> dict[str, Any]:
     messages_seen: set[str] = set()
     first: datetime | None = None
     last: datetime | None = None
-    latest_tokens: dict[str, Any] = {}
-    previous_tokens: dict[str, Any] = {}
+    stable_tokens: dict[str, Any] = {}
+    previous_stable_tokens: dict[str, Any] = {}
+    latest_observed_tokens: dict[str, Any] = {}
+    snapshots_observed = 0
+    snapshots_accepted = 0
+    snapshot_regressions = 0
+    regression_fields: Counter[str] = Counter()
     current_model = "unavailable"
     tokens_by_model: dict[str, Counter[str]] = {}
     token_fields_by_model: dict[str, set[str]] = {}
 
-    def attribute_model_epoch() -> None:
-        nonlocal previous_tokens
-        if not latest_tokens:
-            return
-        numeric_keys = {
-            key for key, value in latest_tokens.items() if isinstance(value, (int, float))
+    def observe_token_snapshot(usage: dict[str, Any]) -> None:
+        nonlocal stable_tokens, previous_stable_tokens, latest_observed_tokens
+        nonlocal snapshots_observed, snapshots_accepted, snapshot_regressions
+        numeric = {
+            key: int(value)
+            for key, value in usage.items()
+            if isinstance(value, (int, float))
         }
-        if any(
-            int(latest_tokens.get(key, 0) or 0) < int(previous_tokens.get(key, 0) or 0)
-            for key in numeric_keys
-        ):
-            tokens_by_model.clear()
-            token_fields_by_model.clear()
-            previous_tokens = {}
-        delta = usage_delta(latest_tokens, previous_tokens)
+        if not numeric:
+            return
+        snapshots_observed += 1
+        latest_observed_tokens = dict(usage)
+        regressed = [
+            key
+            for key, value in numeric.items()
+            if isinstance(stable_tokens.get(key), (int, float))
+            and value < int(stable_tokens[key])
+        ]
+        if regressed:
+            snapshot_regressions += 1
+            regression_fields.update(regressed)
+            return
+        stable_tokens = dict(usage)
+        snapshots_accepted += 1
+        delta = usage_delta(stable_tokens, previous_stable_tokens)
         tokens_by_model.setdefault(current_model, Counter()).update(delta)
-        token_fields_by_model.setdefault(current_model, set()).update(latest_tokens)
-        previous_tokens = dict(latest_tokens)
+        token_fields_by_model.setdefault(current_model, set()).update(numeric)
+        previous_stable_tokens = dict(stable_tokens)
 
     for record, _ in iter_jsonl(path):
         if record.get("_invalid_json"):
@@ -363,8 +379,6 @@ def inspect_codex(path: Path) -> dict[str, Any]:
             first, last = update_times(first, last, payload.get("timestamp"))
         elif record_type == "turn_context":
             next_model = str(payload.get("model") or current_model)
-            if next_model != current_model:
-                attribute_model_epoch()
             result["model"] = payload.get("model") or result["model"]
             result["effort"] = payload.get("effort") or payload.get("reasoning_effort") or result["effort"]
             current_model = next_model
@@ -372,7 +386,7 @@ def inspect_codex(path: Path) -> dict[str, Any]:
             info = payload.get("info") if isinstance(payload.get("info"), dict) else {}
             usage = info.get("total_token_usage")
             if isinstance(usage, dict):
-                latest_tokens = usage
+                observe_token_snapshot(usage)
         elif record_type == "response_item":
             item_type = payload.get("type")
             if item_type == "message":
@@ -410,12 +424,20 @@ def inspect_codex(path: Path) -> dict[str, Any]:
                 result["tool_output_bytes"] += size
                 result["max_tool_output_bytes"] = max(result["max_tool_output_bytes"], size)
 
-    attribute_model_epoch()
     result["commands"] = commands
     result["read_paths"] = read_paths
     result["skills"] = [path for path in read_paths if path.endswith("SKILL.md")]
     result["tool_counts"] = dict(sorted(tools.items()))
-    result["tokens"] = latest_tokens
+    result["tokens"] = stable_tokens
+    result["token_snapshot_stability"] = {
+        "policy": "monotonic-high-water",
+        "observed": snapshots_observed,
+        "accepted": snapshots_accepted,
+        "rejected_regressions": snapshot_regressions,
+        "regression_fields": dict(sorted(regression_fields.items())),
+        "stable_total_tokens": stable_tokens.get("total_tokens"),
+        "latest_observed_total_tokens": latest_observed_tokens.get("total_tokens"),
+    }
     result["tokens_by_model"] = {
         model: normalized_model_tokens(
             dict(usage), harness="codex", available=token_fields_by_model.get(model, set())
@@ -1221,6 +1243,117 @@ def direct_normalized_tokens(result: dict[str, Any]) -> dict[str, int | None]:
     return aggregate_token_rows(models.values()) if models else result.get("tokens", {})
 
 
+def build_insights(result: dict[str, Any]) -> dict[str, Any]:
+    direct = direct_normalized_tokens(result)
+    child = result.get("child_tokens", {})
+    inclusive = result.get("inclusive_tokens", {})
+
+    child_total = child.get("total_tokens", 0)
+    inclusive_total = inclusive.get("total_tokens")
+    child_share = {
+        "status": "unavailable",
+        "child_tokens": child_total,
+        "inclusive_tokens": inclusive_total,
+        "percent": None,
+    }
+    if isinstance(child_total, int) and isinstance(inclusive_total, int) and inclusive_total > 0:
+        child_share.update(status="available", percent=round(child_total * 100 / inclusive_total, 1))
+
+    cache_read = direct.get("cache_read_tokens")
+    uncached_input = direct.get("uncached_input_tokens")
+    observed_input = (
+        cache_read + uncached_input
+        if isinstance(cache_read, int) and isinstance(uncached_input, int)
+        else None
+    )
+    cache_ratio = {
+        "status": "unavailable",
+        "cache_read_tokens": cache_read,
+        "observed_input_tokens": observed_input,
+        "percent": None,
+    }
+    if isinstance(observed_input, int) and observed_input > 0:
+        cache_ratio.update(status="available", percent=round(cache_read * 100 / observed_input, 1))
+
+    unavailable: list[str] = []
+    scopes = {"direct": direct}
+    if result.get("child_summary", {}).get("resolved"):
+        scopes.update(child=child, inclusive=inclusive)
+    for scope, usage in scopes.items():
+        for field in AGGREGATE_TOKEN_FIELDS:
+            if usage.get(field) is None:
+                unavailable.append(f"{scope}.{field}")
+
+    unresolved = int(result.get("child_summary", {}).get("unresolved", 0) or 0)
+    stability = result.get("token_snapshot_stability", {})
+    return {
+        "child_token_share": child_share,
+        "cache_read_ratio": cache_ratio,
+        "unresolved_children": {
+            "count": unresolved,
+            "inclusive_totals_exclude_unresolved": unresolved > 0,
+        },
+        "unavailable_counters": unavailable,
+        "token_snapshot_stability": stability or {"policy": "not-applicable"},
+    }
+
+
+def render_insights(result: dict[str, Any]) -> str:
+    insights = build_insights(result)
+    child = insights["child_token_share"]
+    cache = insights["cache_read_ratio"]
+    unresolved = insights["unresolved_children"]
+    unavailable = insights["unavailable_counters"]
+    stability = insights["token_snapshot_stability"]
+
+    child_value = (
+        f"{child['percent']:.1f}% ({compact_number(child['child_tokens'])}/"
+        f"{compact_number(child['inclusive_tokens'])})"
+        if child["status"] == "available"
+        else "unavailable"
+    )
+    cache_value = (
+        f"{cache['percent']:.1f}% (cache-read={compact_number(cache['cache_read_tokens'])} "
+        f"observed-input={compact_number(cache['observed_input_tokens'])})"
+        if cache["status"] == "available"
+        else "unavailable"
+    )
+    if stability.get("policy") == "not-applicable":
+        stability_value = "not-applicable"
+    else:
+        stability_value = (
+            f"policy={stability['policy']} observed={stability.get('observed', 0)} "
+            f"rejected-regressions={stability.get('rejected_regressions', 0)} "
+            f"stable={compact_number(stability.get('stable_total_tokens'))} "
+            f"latest-observed={compact_number(stability.get('latest_observed_total_tokens'))}"
+        )
+    return "\n".join(
+        [
+            "insights",
+            f"- child-token-share: {child_value}",
+            f"- cache-read-ratio: {cache_value}",
+            f"- unresolved-children: {unresolved['count']}"
+            + ("; inclusive totals exclude them" if unresolved["inclusive_totals_exclude_unresolved"] else ""),
+            "- unavailable-counters: " + (", ".join(unavailable) if unavailable else "none"),
+            f"- token-snapshots: {stability_value}",
+        ]
+    )
+
+
+def token_snapshot_warning(result: dict[str, Any]) -> str | None:
+    stability = result.get("token_snapshot_stability", {})
+    regressions = int(stability.get("rejected_regressions", 0) or 0)
+    if not regressions:
+        return None
+    fields = ",".join(stability.get("regression_fields", {})) or "unknown"
+    return (
+        f"token-snapshot-regressions={regressions} fields={fields} "
+        f"policy={stability.get('policy', 'unavailable')} "
+        f"stable={compact_number(stability.get('stable_total_tokens'))} "
+        f"latest-observed={compact_number(stability.get('latest_observed_total_tokens'))}"
+    )
+
+
 def render_compact_result(result: dict[str, Any]) -> str:
     direct = direct_normalized_tokens(result)
     child = result.get("child_tokens", {})
@@ -1258,6 +1391,9 @@ def render_compact_result(result: dict[str, Any]) -> str:
         )
     if result.get("invalid_json_lines"):
         lines.append(f"warning skipped-invalid-json={result['invalid_json_lines']}")
+    snapshot_warning = token_snapshot_warning(result)
+    if snapshot_warning:
+        lines.append(f"warning {snapshot_warning}")
     return "\n".join(lines)
 
 
@@ -1322,11 +1458,15 @@ def render_verbose_result(result: dict[str, Any], args: argparse.Namespace) -> s
             lines.append(f"- … {view['delegations_omitted']} omitted; rerun with --all")
     if result.get("invalid_json_lines"):
         lines.append(f"warning: skipped {result['invalid_json_lines']} invalid JSON line(s)")
+    snapshot_warning = token_snapshot_warning(result)
+    if snapshot_warning:
+        lines.append(f"warning: {snapshot_warning}")
     return "\n".join(lines)
 
 
 def render_result(result: dict[str, Any], args: argparse.Namespace) -> str:
-    return render_verbose_result(result, args) if args.verbose or args.all else render_compact_result(result)
+    rendered = render_verbose_result(result, args) if args.verbose or args.all else render_compact_result(result)
+    return rendered + ("\n" + render_insights(result) if getattr(args, "insights", False) else "")
 
 
 def diff_results(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
@@ -1453,6 +1593,12 @@ def build_parser() -> argparse.ArgumentParser:
         child = subparsers.add_parser(name)
         child.add_argument("targets", nargs=1 if name == "inspect" else 2)
         child.add_argument("--json", action="store_true")
+        if name == "inspect":
+            child.add_argument(
+                "--insights",
+                action="store_true",
+                help="append deterministic token, lineage, availability, and snapshot diagnostics",
+            )
         child.add_argument("-v", "--verbose", action="store_true", help="show capped detailed output")
         child.add_argument("--all", action="store_true", help="show uncapped detailed output")
         child.add_argument("--full-commands", action="store_true", help="preserve multiline command bodies")
@@ -1471,7 +1617,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"session-inspect: {exc}", file=sys.stderr)
         return 2
     if args.action == "inspect":
-        output: Any = view_result(results[0], args) if args.json else render_result(results[0], args)
+        if args.json:
+            output = view_result(results[0], args)
+            if args.insights:
+                output["insights"] = build_insights(results[0])
+        else:
+            output = render_result(results[0], args)
     else:
         diff = diff_results(results[0], results[1])
         output = diff if args.json else render_diff(diff, args)

@@ -10,6 +10,7 @@ Use the bundled read-only inspector instead of loading raw transcripts into cont
 ```bash
 INSPECT="$HOME/.agents/skills/session-inspect/scripts/session_inspect.py"
 python3 "$INSPECT" inspect <session-id-or-jsonl-path>
+python3 "$INSPECT" inspect <session-id-or-jsonl-path> --insights
 python3 "$INSPECT" diff <session-a> <session-b>
 ```
 
@@ -25,6 +26,14 @@ from inference, and highlight discrepancies or unavailable data. Use `--verbose`
 only when capped per-model details and command/read/skill lists are needed.
 `--all` implies verbose output and removes those caps; use `--full-commands` only
 when exact command bodies are necessary.
+
+Use `--insights` for deterministic child-token share, cache-read ratio,
+unresolved-child impact, unavailable counters, and Codex snapshot-stability
+diagnostics. Treat those lines as mechanical observations, then add a separately
+labeled contextual interpretation when it would help; the inspector does not
+call a model or infer causes. A live Codex counter regression emits a warning
+even without `--insights` and holds the last coherent monotonic high-water
+snapshot until a later snapshot fully recovers.
 
 Use `--json` only for structured downstream processing. It keeps the existing
 capped schema unless combined with `--all`; when only a few fields are needed,

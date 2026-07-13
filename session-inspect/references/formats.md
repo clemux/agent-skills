@@ -11,8 +11,13 @@ The inspector streams rollout JSONL and recognizes:
 - `response_item` function/custom tool calls for commands and output sizes.
 - Top-level `compacted` records for full context-compaction count. The paired
   `event_msg` `context_compacted` notification is not counted again.
-- `event_msg` `token_count` records; the latest cumulative
-  `total_token_usage` snapshot is authoritative and must not be summed.
+- `event_msg` `token_count` records. Accept coherent cumulative
+  `total_token_usage` snapshots into a monotonic high-water and compute model
+  deltas between accepted snapshots; never sum cumulative snapshots directly.
+  If any cumulative field falls below the accepted high-water, reject that
+  snapshot, retain the stable value, and report a warning. A later snapshot is
+  accepted only after all of its present cumulative fields recover. This policy
+  is local to one rollout parse and requires no persistent state.
 
 For per-model usage, attribute the delta between consecutive cumulative token
 snapshots to the active `turn_context.model`. Codex records cached input reads
@@ -91,3 +96,11 @@ inclusive aggregates use normalized uncached-input, cache-read, cache-write,
 output, reasoning/normal-output, and total fields. Any aggregate component stays
 unavailable when one contributing session does not expose that counter.
 Diff JSON provides direct, child-only, and inclusive deltas separately.
+
+`inspect --insights` appends deterministic diagnostics without changing normal
+compact output: child tokens divided by inclusive tokens; cache reads divided by
+uncached input plus cache reads; unresolved-child count and its exclusion from
+inclusive totals; unavailable normalized aggregate counters; and Codex snapshot
+acceptance/regression metadata. With `--json`, the same data appears under
+`insights`. These are mechanical observations, not causal or cost judgments, and
+the script performs no model calls.
