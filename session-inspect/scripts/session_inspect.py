@@ -1175,7 +1175,93 @@ def view_result(result: dict[str, Any], args: argparse.Namespace) -> dict[str, A
     return view
 
 
-def render_result(result: dict[str, Any], args: argparse.Namespace) -> str:
+def compact_number(value: int | None) -> str:
+    if value is None:
+        return "unavailable"
+    absolute = abs(value)
+    for threshold, suffix, decimals in (
+        (1_000_000_000, "B", 2),
+        (1_000_000, "M", 2),
+        (1_000, "K", 1),
+    ):
+        if absolute >= threshold:
+            rendered = f"{value / threshold:.{decimals}f}".rstrip("0").rstrip(".")
+            return f"{rendered}{suffix}"
+    return str(value)
+
+
+def compact_delta(value: int | None) -> str:
+    if value is None:
+        return "unavailable"
+    sign = "+" if value >= 0 else "-"
+    return sign + compact_number(abs(value))
+
+
+def compact_duration(seconds: int | float | None) -> str:
+    if seconds is None:
+        return "unavailable"
+    total = max(0, round(seconds))
+    hours, remainder = divmod(total, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if hours:
+        return f"{hours}h{minutes:02d}m"
+    if minutes:
+        return f"{minutes}m{secs:02d}s"
+    return f"{secs}s"
+
+
+def compact_session_id(session_id: str | None) -> str:
+    if not session_id:
+        return "unknown"
+    return session_id if len(session_id) <= 16 else f"{session_id[:8]}…{session_id[-4:]}"
+
+
+def direct_normalized_tokens(result: dict[str, Any]) -> dict[str, int | None]:
+    models = result.get("tokens_by_model", {})
+    return aggregate_token_rows(models.values()) if models else result.get("tokens", {})
+
+
+def render_compact_result(result: dict[str, Any]) -> str:
+    direct = direct_normalized_tokens(result)
+    child = result.get("child_tokens", {})
+    inclusive = result.get("inclusive_tokens", {})
+    messages = result.get("messages", {})
+    child_summary = result.get("child_summary", {})
+    model = result.get("model") or "unavailable"
+    effort = result.get("effort") or "unavailable"
+    lines = [
+        f"{result['harness']} {compact_session_id(result.get('session_id'))} | {model}/{effort} | "
+        f"{compact_duration(result.get('duration_seconds'))} | compactions={result.get('compactions', 0)}",
+        "tokens "
+        f"direct={compact_number(result.get('tokens', {}).get('total_tokens'))} "
+        f"child={compact_number(child.get('total_tokens', 0))} "
+        f"inclusive={compact_number(inclusive.get('total_tokens', result.get('tokens', {}).get('total_tokens')))}",
+        "input "
+        f"uncached={compact_number(direct.get('uncached_input_tokens'))} "
+        f"cache-read={compact_number(direct.get('cache_read_tokens'))} "
+        f"cache-write={compact_number(direct.get('cache_write_tokens'))} | "
+        f"output={compact_number(direct.get('output_tokens'))} "
+        f"reasoning={compact_number(direct.get('reasoning_output_tokens'))}",
+        "activity "
+        f"messages={messages.get('user', 0)}/{messages.get('assistant', 0)} "
+        f"tools={sum(result.get('tool_counts', {}).values())} "
+        f"commands={len(result.get('commands', []))} "
+        f"reads={len(result.get('read_paths', []))} "
+        f"skills={len(result.get('skills', []))}",
+    ]
+    if child_summary.get("resolved") or child_summary.get("unresolved"):
+        lines.append(
+            "children "
+            f"resolved={child_summary.get('resolved', 0)} "
+            f"(native={child_summary.get('native_resolved', 0)} shell={child_summary.get('shell_resolved', 0)}) "
+            f"unresolved={child_summary.get('unresolved', 0)}"
+        )
+    if result.get("invalid_json_lines"):
+        lines.append(f"warning skipped-invalid-json={result['invalid_json_lines']}")
+    return "\n".join(lines)
+
+
+def render_verbose_result(result: dict[str, Any], args: argparse.Namespace) -> str:
     view = view_result(result, args)
     lines = [
         f"{view['harness']} session {view.get('session_id') or 'unknown'}",
@@ -1239,6 +1325,10 @@ def render_result(result: dict[str, Any], args: argparse.Namespace) -> str:
     return "\n".join(lines)
 
 
+def render_result(result: dict[str, Any], args: argparse.Namespace) -> str:
+    return render_verbose_result(result, args) if args.verbose or args.all else render_compact_result(result)
+
+
 def diff_results(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
     def changes(key: str) -> dict[str, list[Any]]:
         left_values = left.get(key, [])
@@ -1283,7 +1373,29 @@ def diff_results(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def render_diff(diff: dict[str, Any], args: argparse.Namespace) -> str:
+def render_compact_diff(diff: dict[str, Any]) -> str:
+    left = diff["left"]
+    right = diff["right"]
+    lines = [
+        f"left {left['harness']} {compact_session_id(left.get('session_id'))} | "
+        f"{left.get('model') or 'unavailable'}/{left.get('effort') or 'unavailable'} | "
+        f"{compact_duration(left.get('duration_seconds'))} | compactions={left.get('compactions', 0) or 0}",
+        f"right {right['harness']} {compact_session_id(right.get('session_id'))} | "
+        f"{right.get('model') or 'unavailable'}/{right.get('effort') or 'unavailable'} | "
+        f"{compact_duration(right.get('duration_seconds'))} | compactions={right.get('compactions', 0) or 0}",
+        "token delta (right-left) "
+        f"direct={compact_delta(diff.get('token_delta', {}).get('total_tokens'))} "
+        f"child={compact_delta(diff.get('child_token_delta', {}).get('total_tokens'))} "
+        f"inclusive={compact_delta(diff.get('inclusive_token_delta', {}).get('total_tokens'))}",
+    ]
+    changes = []
+    for key, label in (("commands", "commands"), ("read_paths", "reads"), ("skills", "skills")):
+        changes.append(f"{label}=+{len(diff[key]['added'])}/-{len(diff[key]['removed'])}")
+    lines.append("changes " + " ".join(changes))
+    return "\n".join(lines)
+
+
+def render_verbose_diff(diff: dict[str, Any], args: argparse.Namespace) -> str:
     lines = [
         f"left: {diff['left']['harness']} {diff['left'].get('session_id') or 'unknown'} model={diff['left'].get('model') or 'unavailable'} effort={diff['left'].get('effort') or 'unavailable'} compactions={diff['left'].get('compactions', 0) or 0}",
         f"right: {diff['right']['harness']} {diff['right'].get('session_id') or 'unknown'} model={diff['right'].get('model') or 'unavailable'} effort={diff['right'].get('effort') or 'unavailable'} compactions={diff['right'].get('compactions', 0) or 0}",
@@ -1327,6 +1439,10 @@ def render_diff(diff: dict[str, Any], args: argparse.Namespace) -> str:
     return "\n".join(lines)
 
 
+def render_diff(diff: dict[str, Any], args: argparse.Namespace) -> str:
+    return render_verbose_diff(diff, args) if args.verbose or args.all else render_compact_diff(diff)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--codex-root", type=Path, default=Path(os.environ.get("SESSION_INSPECT_CODEX_ROOT", "~/.codex/sessions")).expanduser())
@@ -1337,7 +1453,8 @@ def build_parser() -> argparse.ArgumentParser:
         child = subparsers.add_parser(name)
         child.add_argument("targets", nargs=1 if name == "inspect" else 2)
         child.add_argument("--json", action="store_true")
-        child.add_argument("--all", action="store_true", help="show every list item")
+        child.add_argument("-v", "--verbose", action="store_true", help="show capped detailed output")
+        child.add_argument("--all", action="store_true", help="show uncapped detailed output")
         child.add_argument("--full-commands", action="store_true", help="preserve multiline command bodies")
         child.add_argument("--max-items", type=int, default=10)
         child.add_argument("--command-chars", type=int, default=200)

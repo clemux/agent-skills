@@ -217,7 +217,13 @@ class SessionInspectTests(unittest.TestCase):
         self.assertEqual(result["tool_output_bytes"], 12)
         self.assertEqual(result["compactions"], 2)
         args = MODULE.build_parser().parse_args(["inspect", "unused"])
-        self.assertIn("compactions: 2", MODULE.render_result(result, args))
+        compact = MODULE.render_result(result, args)
+        self.assertIn("compactions=2", compact)
+        self.assertIn("tokens direct=33 child=0 inclusive=33", compact)
+        self.assertNotIn("path:", compact)
+        self.assertLessEqual(len(compact.encode()), 600)
+        verbose_args = MODULE.build_parser().parse_args(["inspect", "unused", "--verbose"])
+        self.assertIn("compactions: 2", MODULE.render_result(result, verbose_args))
 
     def test_claude_tokens_are_grouped_by_message_model_with_cache_writes(self) -> None:
         transcript = self.claude_root / "project" / "models.jsonl"
@@ -291,7 +297,7 @@ class SessionInspectTests(unittest.TestCase):
                 },
             },
         )
-        args = MODULE.build_parser().parse_args(["inspect", "unused"])
+        args = MODULE.build_parser().parse_args(["inspect", "unused", "--verbose"])
         rendered = MODULE.render_result(result, args)
         self.assertIn("latest model: claude-opus-4-8", rendered)
         self.assertNotIn("<synthetic>", rendered)
@@ -385,8 +391,31 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         self.assertEqual(result["child_sessions"][0]["requested"]["task_name"], "child")
         self.assertEqual(result["child_tokens"]["total_tokens"], 25)
         self.assertEqual(result["inclusive_tokens"]["total_tokens"], 55)
-        args = MODULE.build_parser().parse_args(["inspect", "unused"])
+        compact_args = MODULE.build_parser().parse_args(["inspect", "unused"])
+        compact = MODULE.render_result(result, compact_args)
+        self.assertIn("tokens direct=30 child=25 inclusive=55", compact)
+        self.assertIn("children resolved=1 (native=1 shell=0) unresolved=1", compact)
+        args = MODULE.build_parser().parse_args(["inspect", "unused", "--verbose"])
         self.assertIn("child sessions: resolved=1 unresolved=1 child_total=25 inclusive_total=55", MODULE.render_result(result, args))
+
+    def test_json_view_remains_capped_unless_all_is_requested(self) -> None:
+        result = {
+            "commands": [f"command-{index}" for index in range(12)],
+            "read_paths": [],
+            "skills": [],
+            "delegations": [],
+            "child_sessions": [],
+            "unresolved_children": [],
+        }
+        default_args = MODULE.build_parser().parse_args(["inspect", "unused", "--json"])
+        verbose_args = MODULE.build_parser().parse_args(["inspect", "unused", "--json", "--verbose"])
+        all_args = MODULE.build_parser().parse_args(["inspect", "unused", "--json", "--all"])
+
+        default_view = MODULE.view_result(result, default_args)
+        self.assertEqual(default_view, MODULE.view_result(result, verbose_args))
+        self.assertEqual(len(default_view["commands"]), 10)
+        self.assertEqual(default_view["commands_omitted"], 2)
+        self.assertEqual(len(MODULE.view_result(result, all_args)["commands"]), 12)
 
     def test_claude_native_subagent_tokens_are_separate_from_direct_tokens(self) -> None:
         parent_id = "aaaaaaaa-1111-4222-8333-cccccccccccc"
@@ -526,6 +555,12 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         self.assertEqual(diff["commands"]["added"], ["two"])
         args = MODULE.build_parser().parse_args(["diff", "left", "right"])
         rendered = MODULE.render_diff(diff, args)
+        self.assertIn("token delta (right-left) direct=+5 child=+5 inclusive=+10", rendered)
+        self.assertIn("changes commands=+1/-0 reads=+0/-0 skills=+0/-0", rendered)
+        self.assertNotIn("token delta by model", rendered)
+        self.assertLessEqual(len(rendered.splitlines()), 4)
+        verbose_args = MODULE.build_parser().parse_args(["diff", "left", "right", "--verbose"])
+        rendered = MODULE.render_diff(diff, verbose_args)
         self.assertIn("token delta by model (right-left):", rendered)
         self.assertIn("reasoning_output=unavailable", rendered)
         self.assertIn("child_total=+5 inclusive_total=+10", rendered)

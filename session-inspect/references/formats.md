@@ -75,16 +75,19 @@ is available.
 ## Safety and output economy
 
 The script opens transcripts and optional Codex config only for reading. It has
-no network or export code. Default human and JSON output cap lists and command
-lengths, report omitted counts, and require explicit flags for expansion.
-Session diffs include both aggregate and per-model token deltas. Missing models
-compare against zero, while provider counters recorded as unavailable remain
-unavailable rather than being treated as zero.
+no network or export code. Default human output is a bounded four- or five-line
+summary without paths or list values. `--verbose` restores capped metadata,
+per-model usage, and command/read/skill lists; `--all` implies verbose output and
+uncaps them. JSON retains its existing capped structure and requires `--all` for
+expansion. Prefer filtering JSON before it enters model context.
+
+Compact session diffs show direct, child, and inclusive total-token deltas and
+change counts. Verbose diffs include per-model deltas and changed values. Missing
+models compare against zero, while provider counters recorded as unavailable
+remain unavailable rather than being treated as zero.
 
 `tokens` and `tokens_by_model` are always direct-session values. Child and
 inclusive aggregates use normalized uncached-input, cache-read, cache-write,
 output, reasoning/normal-output, and total fields. Any aggregate component stays
 unavailable when one contributing session does not expose that counter.
-Diff JSON provides direct, child-only, and inclusive deltas separately; compact
-human output keeps the existing direct delta and adds one child/inclusive line
-only when either session has child lineage.
+Diff JSON provides direct, child-only, and inclusive deltas separately.
