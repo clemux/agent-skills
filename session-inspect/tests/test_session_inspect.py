@@ -96,9 +96,27 @@ class SessionInspectTests(unittest.TestCase):
             ["/repo/input.md", "/repo/actual.md"],
         )
 
+    def test_loop_and_glob_inputs_are_preserved(self) -> None:
+        command = "for f in content/chapters/*.md; do sed -n '1,20p' \"$f\"; done"
+        self.assertEqual(
+            MODULE.read_paths_from_command(command),
+            ["content/chapters/*.md"],
+        )
+
     def test_read_glob_and_loop_variable_are_reported(self) -> None:
         command = "V=/repo; for f in $V/content/*.md; do cat \"$f\"; done"
         self.assertEqual(MODULE.read_paths_from_command(command), ["/repo/content/*.md"])
+
+    def test_unresolved_and_parameter_expansion_paths_are_omitted(self) -> None:
+        command = (
+            "for a in first second; do cat /repo/agent-$a.jsonl; done; "
+            "for meta in /repo/*.meta.json; do cat \"${meta%.meta.json}.jsonl\"; done; "
+            "cat \"$HOME/known.md\""
+        )
+        self.assertEqual(
+            MODULE.read_paths_from_command(command),
+            [str(Path.home() / "known.md")],
+        )
 
     def test_claude_deduplicates_message_snapshots_and_tool_ids(self) -> None:
         session = "aaaaaaaa-1111-4222-8333-bbbbbbbbbbbb"

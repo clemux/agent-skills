@@ -144,7 +144,7 @@ def pathish(token: str, allow_glob: bool = False) -> bool:
     forbidden = "<>" if allow_glob else "*?[<>"
     if not value or value in {"-", ".", ".."} or any(char in value for char in forbidden):
         return False
-    if value.startswith("$") or ("=" in value and not value.startswith(("./", "../"))):
+    if "$" in value or ("=" in value and not value.startswith(("./", "../"))):
         return False
     return (
         value.startswith(("/", "~/", "./", "../"))
@@ -158,7 +158,7 @@ def read_paths_from_command(command: str) -> list[str]:
     found: list[str] = []
     readers = {"cat", "less", "more", "head", "tail", "wc", "readlink"}
     searchers = {"rg", "grep", "jq", "sed", "find"}
-    variables: dict[str, str] = {}
+    variables: dict[str, str] = {"HOME": str(Path.home())}
     command_without_heredocs = "\n".join(strip_heredoc_bodies(command))
     for match in re.finditer(r"(?:^|[;\n])\s*for\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+([^;\n]+)", command_without_heredocs):
         values = shell_tokens(match.group(2))
@@ -180,11 +180,16 @@ def read_paths_from_command(command: str) -> list[str]:
 
         def resolved(item: str) -> str:
             def replace(match: re.Match[str]) -> str:
-                return variables.get(match.group(1), match.group(0))
+                name = match.group(1) or match.group(2)
+                return variables.get(name, match.group(0))
 
             value = item
             for _ in range(3):
-                expanded = re.sub(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?", replace, value)
+                expanded = re.sub(
+                    r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))",
+                    replace,
+                    value,
+                )
                 if expanded == value:
                     break
                 value = expanded
