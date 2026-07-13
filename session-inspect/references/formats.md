@@ -29,6 +29,13 @@ Native Codex child lineage comes from `sub_agent_activity` records with
 descendants recursively. A spawn with no start record or a start whose rollout
 cannot be found is reported as unresolved rather than included in token totals.
 
+For shell-launched agents, require launch provenance from the command and a
+durable ID from either an explicit session/resume argument or captured output.
+Codex `--json` emits `thread.started`; Claude JSON/stream output emits a `system`
+`init` object with `session_id`. Long-running Codex tools may return a cell ID and
+deliver that output through a later `wait`, so preserve the launch-call → cell →
+wait-call chain. Do not infer children from arbitrary UUIDs printed later.
+
 ## Claude Code
 
 Search root: `~/.claude/projects`.
@@ -78,3 +85,6 @@ unavailable rather than being treated as zero.
 inclusive aggregates use normalized uncached-input, cache-read, cache-write,
 output, reasoning/normal-output, and total fields. Any aggregate component stays
 unavailable when one contributing session does not expose that counter.
+Diff JSON provides direct, child-only, and inclusive deltas separately; compact
+human output keeps the existing direct delta and adds one child/inclusive line
+only when either session has child lineage.

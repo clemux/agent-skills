@@ -23,6 +23,16 @@ THREAD_CONTEXT_RE = re.compile(
     r"([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})",
     re.I,
 )
+CELL_ID_RE = re.compile(r"Script running with cell ID ([^\s]+)")
+CODEX_STARTED_RE = re.compile(
+    r'"type"\s*:\s*"thread\.started".{0,256}?"thread_id"\s*:\s*"(' + UUID_RE.pattern + r')"',
+    re.I | re.S,
+)
+CLAUDE_INIT_RE = re.compile(
+    r'"type"\s*:\s*"system"\s*,\s*"subtype"\s*:\s*"init".{0,512}?'
+    r'"session_id"\s*:\s*"(' + UUID_RE.pattern + r')"',
+    re.I | re.S,
+)
 AGGREGATE_TOKEN_FIELDS = (
     "uncached_input_tokens",
     "cache_read_tokens",
@@ -742,7 +752,7 @@ def resolve_target(target: str, codex_root: Path, claude_root: Path) -> tuple[Pa
 def inspect_target(target: str, codex_root: Path, claude_root: Path, codex_home: Path) -> dict[str, Any]:
     path, harness = resolve_target(target, codex_root, claude_root)
     result = inspect_codex(path) if harness == "codex" else inspect_claude(path, codex_root, codex_home)
-    attach_native_children(result, path, harness, codex_root, codex_home)
+    attach_children(result, path, harness, codex_root, claude_root, codex_home)
     return result
 
 
@@ -829,8 +839,193 @@ def child_row(
     }
 
 
-def attach_native_children(
-    result: dict[str, Any], path: Path, harness: str, codex_root: Path, codex_home: Path
+def output_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "\n".join(output_text(item) for item in value)
+    if isinstance(value, dict):
+        text = value.get("text")
+        return str(text) if isinstance(text, str) else json.dumps(value, ensure_ascii=False)
+    return "" if value is None else str(value)
+
+
+def launch_details(command: str) -> tuple[str, str | None] | None:
+    for segment in shell_segments("\n".join(strip_heredoc_bodies(command)).replace("\n", ";")):
+        index = next(
+            (
+                position
+                for position, token in enumerate(segment)
+                if "=" not in token and not token.startswith(("(", "{"))
+            ),
+            None,
+        )
+        if index is None:
+            continue
+        executable = Path(segment[index]).name
+        arguments = segment[index + 1 :]
+        if "--help" in arguments or "-h" in arguments:
+            continue
+        if executable == "codex" and arguments[:1] == ["exec"]:
+            hint = next((token for token in arguments if UUID_RE.fullmatch(token)), None)
+            return "codex", hint.lower() if hint else None
+        if executable == "claude" and any(flag in arguments for flag in ("--print", "-p")):
+            hint = flag_value(arguments, {"--session-id"})
+            return "claude", hint.lower() if hint and UUID_RE.fullmatch(hint) else None
+    return None
+
+
+def shell_markers(text: str, expected_harness: str) -> list[str]:
+    pattern = CODEX_STARTED_RE if expected_harness == "codex" else CLAUDE_INIT_RE
+    return list(dict.fromkeys(match.lower() for match in pattern.findall(text)))
+
+
+def codex_shell_refs(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    calls: dict[str, tuple[str, str]] = {}
+    cells: dict[str, tuple[str, str]] = {}
+    launches: dict[str, str] = {}
+    found: set[str] = set()
+    refs: list[dict[str, Any]] = []
+    for record, _ in iter_jsonl(path):
+        payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
+        if record.get("type") != "response_item":
+            continue
+        item_type = payload.get("type")
+        if item_type in {"function_call", "custom_tool_call"}:
+            call_id = str(payload.get("call_id") or payload.get("id") or "")
+            name = payload.get("name")
+            commands: list[str] = []
+            if name in {"exec_command", "shell_command"}:
+                arguments = decode_json_object(payload.get("arguments"))
+                command = arguments.get("cmd") or arguments.get("command")
+                if isinstance(command, str):
+                    commands.append(command)
+            elif name == "exec":
+                commands.extend(commands_from_js(payload.get("input")))
+            details = None
+            for command in commands:
+                details = launch_details(command)
+                if details:
+                    break
+            if details and call_id:
+                launch, hint = details
+                calls[call_id] = (launch, call_id)
+                launches[call_id] = launch
+                if hint:
+                    marker = f"{launch}:{hint}"
+                    found.add(marker)
+                    refs.append({
+                        "harness": launch,
+                        "session_id": hint,
+                        "call_id": call_id,
+                        "relationship": "shell",
+                        "provenance": "explicit-command",
+                    })
+            elif name == "wait" and call_id:
+                arguments = decode_json_object(payload.get("arguments"))
+                cell_id = str(arguments.get("cell_id") or "")
+                if cell_id in cells:
+                    calls[call_id] = cells[cell_id]
+        elif item_type in {"function_call_output", "custom_tool_call_output"}:
+            call_id = str(payload.get("call_id") or payload.get("id") or "")
+            if call_id not in calls:
+                continue
+            expected, origin = calls[call_id]
+            text = output_text(payload.get("output"))
+            cell = CELL_ID_RE.search(text)
+            if cell:
+                cells[cell.group(1)] = (expected, origin)
+            for session_id in shell_markers(text, expected):
+                marker = f"{expected}:{session_id}"
+                if marker in found:
+                    continue
+                found.add(marker)
+                refs.append({
+                    "harness": expected,
+                    "session_id": session_id,
+                    "call_id": origin,
+                    "relationship": "shell",
+                    "provenance": "captured-tool-output",
+                })
+    resolved_origins = {str(row["call_id"]) for row in refs}
+    unresolved = [
+        {
+            "call_id": call_id,
+            "harness": child_harness,
+            "relationship": "shell",
+            "reason": "session-id-not-captured",
+        }
+        for call_id, child_harness in launches.items()
+        if call_id not in resolved_origins
+    ]
+    return refs, unresolved
+
+
+def claude_shell_refs(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    launches: dict[str, str] = {}
+    found: set[str] = set()
+    refs: list[dict[str, Any]] = []
+    for record, _ in iter_jsonl(path):
+        message = record.get("message") if isinstance(record.get("message"), dict) else {}
+        content = message.get("content") if isinstance(message.get("content"), list) else []
+        if record.get("type") == "assistant":
+            for block in content:
+                if not isinstance(block, dict) or block.get("type") != "tool_use" or block.get("name") != "Bash":
+                    continue
+                tool_input = block.get("input") if isinstance(block.get("input"), dict) else {}
+                command = tool_input.get("command")
+                details = launch_details(command) if isinstance(command, str) else None
+                if details and block.get("id"):
+                    launch, hint = details
+                    tool_id = str(block["id"])
+                    launches[tool_id] = launch
+                    if hint:
+                        marker = f"{launch}:{hint}"
+                        found.add(marker)
+                        refs.append({
+                            "harness": launch,
+                            "session_id": hint,
+                            "call_id": tool_id,
+                            "relationship": "shell",
+                            "provenance": "explicit-command",
+                        })
+        elif record.get("type") == "user":
+            for block in content:
+                if not isinstance(block, dict) or block.get("type") != "tool_result":
+                    continue
+                tool_id = str(block.get("tool_use_id") or "")
+                expected = launches.get(tool_id)
+                if not expected:
+                    continue
+                for session_id in shell_markers(output_text(block.get("content")), expected):
+                    marker = f"{expected}:{session_id}"
+                    if marker in found:
+                        continue
+                    found.add(marker)
+                    refs.append({
+                        "harness": expected,
+                        "session_id": session_id,
+                        "call_id": tool_id,
+                        "relationship": "shell",
+                        "provenance": "captured-tool-output",
+                    })
+    resolved_origins = {str(row["call_id"]) for row in refs}
+    unresolved = [
+        {
+            "call_id": call_id,
+            "harness": child_harness,
+            "relationship": "shell",
+            "reason": "session-id-not-captured",
+        }
+        for call_id, child_harness in launches.items()
+        if call_id not in resolved_origins
+    ]
+    return refs, unresolved
+
+
+def attach_children(
+    result: dict[str, Any], path: Path, harness: str, codex_root: Path,
+    claude_root: Path, codex_home: Path,
 ) -> None:
     children: list[dict[str, Any]] = []
     unresolved: list[dict[str, Any]] = []
@@ -886,6 +1081,47 @@ def attach_native_children(
                     depth=1,
                 ))
 
+    shell_refs, shell_missing = (
+        codex_shell_refs(path) if harness == "codex" else claude_shell_refs(path)
+    )
+    unresolved.extend({**row, "parent_session_id": result.get("session_id"), "depth": 1} for row in shell_missing)
+    existing = {f"{row['harness']}:{row['child_id']}" for row in children}
+    existing.add(f"{harness}:{result.get('session_id')}")
+    codex_index = codex_rollout_index(codex_root)
+    for ref in shell_refs:
+        child_key = f"{ref['harness']}:{ref['session_id']}"
+        if child_key in existing:
+            continue
+        child_path: Path | None
+        if ref["harness"] == "codex":
+            child_path = codex_index.get(ref["session_id"])
+        else:
+            matches = list(claude_root.rglob(f"{ref['session_id']}.jsonl")) if claude_root.is_dir() else []
+            child_path = matches[0] if len(matches) == 1 else None
+        if child_path is None:
+            unresolved.append({
+                **ref,
+                "parent_session_id": result.get("session_id"),
+                "depth": 1,
+                "reason": "session-artifact-not-found",
+            })
+            continue
+        inspected = (
+            inspect_codex(child_path)
+            if ref["harness"] == "codex"
+            else inspect_claude(child_path, codex_root, codex_home, include_delegations=False)
+        )
+        children.append(child_row(
+            inspected,
+            child_id=ref["session_id"],
+            parent_id=result.get("session_id"),
+            relationship="shell",
+            provenance=ref.get("provenance", "captured-tool-output"),
+            depth=1,
+            requested={"harness": ref["harness"]},
+        ))
+        existing.add(child_key)
+
     child_models = aggregate_models(children)
     inclusive_models = aggregate_models([result, *children])
     result["child_sessions"] = children
@@ -897,8 +1133,10 @@ def attach_native_children(
     result["child_summary"] = {
         "resolved": len(children),
         "unresolved": len(unresolved),
-        "native_resolved": len(children),
-        "native_unresolved": len(unresolved),
+        "native_resolved": sum(row["relationship"] == "native" for row in children),
+        "native_unresolved": sum(row.get("relationship") == "native" for row in unresolved),
+        "shell_resolved": sum(row["relationship"] == "shell" for row in children),
+        "shell_unresolved": sum(row.get("relationship") == "shell" for row in unresolved),
     }
 
 
@@ -1010,26 +1248,35 @@ def diff_results(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
             "added": [item for item in right_values if item not in left_values],
         }
 
-    token_keys = sorted(set(left.get("tokens", {})) | set(right.get("tokens", {})))
-    left_models = left.get("tokens_by_model", {})
-    right_models = right.get("tokens_by_model", {})
-    token_delta_by_model: dict[str, dict[str, int | None]] = {}
-    for model in sorted(set(left_models) | set(right_models)):
-        left_usage = left_models.get(model, {})
-        right_usage = right_models.get(model, {})
-        model_keys = sorted(set(left_usage) | set(right_usage))
-        token_delta_by_model[model] = {}
-        for key in model_keys:
+    def token_delta(left_usage: dict[str, Any], right_usage: dict[str, Any]) -> dict[str, int | None]:
+        delta: dict[str, int | None] = {}
+        for key in sorted(set(left_usage) | set(right_usage)):
             left_value = left_usage.get(key, 0)
             right_value = right_usage.get(key, 0)
-            token_delta_by_model[model][key] = (
-                None if left_value is None or right_value is None else int(right_value) - int(left_value)
+            delta[key] = (
+                None
+                if left_value is None or right_value is None
+                else int(right_value) - int(left_value)
             )
+        return delta
+
+    def model_delta(left_key: str, right_key: str) -> dict[str, dict[str, int | None]]:
+        left_models = left.get(left_key, {})
+        right_models = right.get(right_key, {})
+        return {
+            model: token_delta(left_models.get(model, {}), right_models.get(model, {}))
+            for model in sorted(set(left_models) | set(right_models))
+        }
+
     return {
-        "left": {key: left.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds", "compactions")},
-        "right": {key: right.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds", "compactions")},
-        "token_delta": {key: int(right.get("tokens", {}).get(key, 0)) - int(left.get("tokens", {}).get(key, 0)) for key in token_keys},
-        "token_delta_by_model": token_delta_by_model,
+        "left": {key: left.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds", "compactions", "child_summary")},
+        "right": {key: right.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds", "compactions", "child_summary")},
+        "token_delta": token_delta(left.get("tokens", {}), right.get("tokens", {})),
+        "token_delta_by_model": model_delta("tokens_by_model", "tokens_by_model"),
+        "child_token_delta": token_delta(left.get("child_tokens", {}), right.get("child_tokens", {})),
+        "child_token_delta_by_model": model_delta("child_tokens_by_model", "child_tokens_by_model"),
+        "inclusive_token_delta": token_delta(left.get("inclusive_tokens", {}), right.get("inclusive_tokens", {})),
+        "inclusive_token_delta_by_model": model_delta("inclusive_tokens_by_model", "inclusive_tokens_by_model"),
         "commands": changes("commands"),
         "read_paths": changes("read_paths"),
         "skills": changes("skills"),
@@ -1052,6 +1299,22 @@ def render_diff(diff: dict[str, Any], args: argparse.Namespace) -> str:
                 for key, value in usage.items()
             )
             lines.append(f"- {model}: {values}")
+    child_counts = [
+        side.get("child_summary", {}).get("resolved", 0)
+        + side.get("child_summary", {}).get("unresolved", 0)
+        for side in (diff["left"], diff["right"])
+    ]
+    if any(child_counts):
+        child_total = diff.get("child_token_delta", {}).get("total_tokens")
+        inclusive_total = diff.get("inclusive_token_delta", {}).get("total_tokens")
+        child_value = f"{child_total:+d}" if child_total is not None else "unavailable"
+        inclusive_value = (
+            f"{inclusive_total:+d}" if inclusive_total is not None else "unavailable"
+        )
+        lines.append(
+            "child/inclusive token delta (right-left): "
+            f"child_total={child_value} inclusive_total={inclusive_value}"
+        )
     for key in ("commands", "read_paths", "skills"):
         lines.append(f"{key.replace('_', ' ')}:")
         for direction, prefix in (("removed", "-"), ("added", "+")):

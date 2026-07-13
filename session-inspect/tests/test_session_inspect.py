@@ -370,7 +370,17 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         result = MODULE.inspect_target(str(parent), self.codex_root, self.claude_root, self.codex_home)
 
         self.assertEqual(result["tokens"]["total_tokens"], 30)
-        self.assertEqual(result["child_summary"], {"resolved": 1, "unresolved": 1, "native_resolved": 1, "native_unresolved": 1})
+        self.assertEqual(
+            result["child_summary"],
+            {
+                "resolved": 1,
+                "unresolved": 1,
+                "native_resolved": 1,
+                "native_unresolved": 1,
+                "shell_resolved": 0,
+                "shell_unresolved": 0,
+            },
+        )
         self.assertEqual(result["child_sessions"][0]["child_id"], child_id)
         self.assertEqual(result["child_sessions"][0]["requested"]["task_name"], "child")
         self.assertEqual(result["child_tokens"]["total_tokens"], 25)
@@ -399,10 +409,89 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         self.assertEqual(result["child_tokens"]["total_tokens"], 20)
         self.assertEqual(result["inclusive_tokens"]["total_tokens"], 30)
 
+    def test_codex_shell_children_follow_deferred_cell_outputs_and_deduplicate(self) -> None:
+        parent_id = "019f0000-0000-7000-8000-000000000020"
+        codex_child_id = "019f0000-0000-7000-8000-000000000021"
+        claude_child_id = "aaaaaaaa-1111-4222-8333-dddddddddddd"
+        parent = self.codex_root / f"rollout-{parent_id}.jsonl"
+        codex_child = self.codex_root / f"rollout-{codex_child_id}.jsonl"
+        claude_child = self.claude_root / "project" / f"{claude_child_id}.jsonl"
+        self.assertIsNone(MODULE.launch_details("codex exec --help"))
+        self.assertEqual(
+            MODULE.launch_details(f"claude -p --session-id {claude_child_id} prompt"),
+            ("claude", claude_child_id),
+        )
+        write_jsonl(
+            parent,
+            [
+                {"type": "session_meta", "payload": {"id": parent_id}},
+                {"type": "custom", "payload": {}},
+                {"type": "response_item", "payload": {"type": "custom_tool_call", "name": "exec", "call_id": "launch-codex", "input": 'const r = await tools.exec_command({"cmd":"codex exec --json prompt"}); text(r.output);'}},
+                {"type": "response_item", "payload": {"type": "custom_tool_call_output", "call_id": "launch-codex", "output": "Script running with cell ID 75\n"}},
+                {"type": "response_item", "payload": {"type": "function_call", "name": "wait", "call_id": "wait-codex", "arguments": json.dumps({"cell_id": "75"})}},
+                {"type": "response_item", "payload": {"type": "function_call_output", "call_id": "wait-codex", "output": f'{{"type":"thread.started","thread_id":"{codex_child_id}"}}'}},
+                {"type": "response_item", "payload": {"type": "custom_tool_call", "name": "exec", "call_id": "launch-claude", "input": 'const r = await tools.exec_command({"cmd":"claude --print --output-format json prompt"}); text(r.output);'}},
+                {"type": "response_item", "payload": {"type": "custom_tool_call_output", "call_id": "launch-claude", "output": f'{{"type":"system","subtype":"init","session_id":"{claude_child_id}"}}'}},
+                {"type": "response_item", "payload": {"type": "function_call", "name": "wait", "call_id": "wait-again", "arguments": json.dumps({"cell_id": "75"})}},
+                {"type": "response_item", "payload": {"type": "function_call_output", "call_id": "wait-again", "output": f'{{"type":"thread.started","thread_id":"{codex_child_id}"}}'}},
+            ],
+        )
+        write_jsonl(
+            codex_child,
+            [
+                {"type": "session_meta", "payload": {"id": codex_child_id}},
+                {"type": "turn_context", "payload": {"model": "gpt-child"}},
+                {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 8, "output_tokens": 2, "total_tokens": 10}}}},
+            ],
+        )
+        write_jsonl(
+            claude_child,
+            [{"type": "assistant", "sessionId": claude_child_id, "message": {"id": "m", "model": "claude-sonnet", "usage": {"input_tokens": 5, "output_tokens": 5}, "content": []}}],
+        )
+
+        result = MODULE.inspect_target(str(parent), self.codex_root, self.claude_root, self.codex_home)
+
+        self.assertEqual(result["child_summary"]["shell_resolved"], 2)
+        self.assertEqual(result["child_summary"]["shell_unresolved"], 0)
+        self.assertEqual({row["child_id"] for row in result["child_sessions"]}, {codex_child_id, claude_child_id})
+        self.assertEqual(result["child_tokens"]["total_tokens"], 20)
+
+    def test_claude_bash_shell_child_is_linked_from_tool_result(self) -> None:
+        parent_id = "aaaaaaaa-1111-4222-8333-eeeeeeeeeeee"
+        child_id = "019f0000-0000-7000-8000-000000000030"
+        parent = self.claude_root / "project" / f"{parent_id}.jsonl"
+        child = self.codex_root / f"rollout-{child_id}.jsonl"
+        write_jsonl(
+            parent,
+            [
+                {"type": "assistant", "sessionId": parent_id, "message": {"id": "m1", "model": "claude-sonnet", "usage": {}, "content": [{"type": "tool_use", "id": "tool-1", "name": "Bash", "input": {"command": "codex exec --json prompt"}}]}},
+                {"type": "user", "sessionId": parent_id, "message": {"content": [{"type": "tool_result", "tool_use_id": "tool-1", "content": f'{{"type":"thread.started","thread_id":"{child_id}"}}'}]}},
+            ],
+        )
+        write_jsonl(
+            child,
+            [
+                {"type": "session_meta", "payload": {"id": child_id}},
+                {"type": "turn_context", "payload": {"model": "gpt-child"}},
+                {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 7, "output_tokens": 3, "total_tokens": 10}}}},
+            ],
+        )
+
+        result = MODULE.inspect_target(str(parent), self.codex_root, self.claude_root, self.codex_home)
+
+        self.assertEqual(result["child_summary"]["shell_resolved"], 1)
+        self.assertEqual(result["child_sessions"][0]["child_id"], child_id)
+        self.assertEqual(result["child_sessions"][0]["relationship"], "shell")
+
     def test_diff_reports_added_commands_and_token_delta(self) -> None:
         left = {
             "compactions": 1,
+            "child_summary": {"resolved": 1, "unresolved": 0},
             "tokens": {"total_tokens": 10},
+            "child_tokens": {"total_tokens": 4},
+            "inclusive_tokens": {"total_tokens": 14},
+            "child_tokens_by_model": {"luna": {"total_tokens": 4}},
+            "inclusive_tokens_by_model": {"luna": {"total_tokens": 4}, "terra": {"total_tokens": 10}},
             "tokens_by_model": {
                 "terra": {"output_tokens": 2, "reasoning_output_tokens": None, "total_tokens": 10}
             },
@@ -412,7 +501,12 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         }
         right = {
             "compactions": 3,
+            "child_summary": {"resolved": 2, "unresolved": 0},
             "tokens": {"total_tokens": 15},
+            "child_tokens": {"total_tokens": 9},
+            "inclusive_tokens": {"total_tokens": 24},
+            "child_tokens_by_model": {"luna": {"total_tokens": 9}},
+            "inclusive_tokens_by_model": {"luna": {"total_tokens": 9}, "terra": {"total_tokens": 15}},
             "tokens_by_model": {
                 "luna": {"output_tokens": 1, "reasoning_output_tokens": None, "total_tokens": 3},
                 "terra": {"output_tokens": 3, "reasoning_output_tokens": None, "total_tokens": 12},
@@ -426,11 +520,15 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         self.assertEqual(diff["token_delta_by_model"]["luna"]["total_tokens"], 3)
         self.assertEqual(diff["token_delta_by_model"]["terra"]["output_tokens"], 1)
         self.assertIsNone(diff["token_delta_by_model"]["terra"]["reasoning_output_tokens"])
+        self.assertEqual(diff["child_token_delta"]["total_tokens"], 5)
+        self.assertEqual(diff["inclusive_token_delta"]["total_tokens"], 10)
+        self.assertEqual(diff["child_token_delta_by_model"]["luna"]["total_tokens"], 5)
         self.assertEqual(diff["commands"]["added"], ["two"])
         args = MODULE.build_parser().parse_args(["diff", "left", "right"])
         rendered = MODULE.render_diff(diff, args)
         self.assertIn("token delta by model (right-left):", rendered)
         self.assertIn("reasoning_output=unavailable", rendered)
+        self.assertIn("child_total=+5 inclusive_total=+10", rendered)
         self.assertIn("compactions=1", rendered)
         self.assertIn("compactions=3", rendered)
 

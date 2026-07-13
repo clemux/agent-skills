@@ -24,10 +24,11 @@ all items, `--full-commands` only when exact command bodies are necessary, and
 Session diffs report aggregate and per-model token deltas alongside command,
 read-path, and skill changes.
 
-Direct-session fields keep their original meaning. Native Codex subagents and
-Claude `subagents/` transcripts are reported separately as `child_sessions`,
-`child_tokens`, and `inclusive_tokens`; unresolved child launches remain visible.
-The compact report adds only a one-line child summary when lineage exists.
+Direct-session fields keep their original meaning. Native Codex subagents,
+Claude `subagents/` transcripts, and shell-launched Codex/Claude sessions are
+reported separately as `child_sessions`, `child_tokens`, and `inclusive_tokens`;
+unresolved child launches remain visible. The compact report adds only a one-line
+child summary when lineage exists.
 
 Inspection is strictly local and read-only. Do not combine it with export, copy,
 snapshot, or mutation steps unless the user explicitly requests a separate write
