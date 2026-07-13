@@ -53,3 +53,6 @@ is available.
 The script opens transcripts and optional Codex config only for reading. It has
 no network or export code. Default human and JSON output cap lists and command
 lengths, report omitted counts, and require explicit flags for expansion.
+Session diffs include both aggregate and per-model token deltas. Missing models
+compare against zero, while provider counters recorded as unavailable remain
+unavailable rather than being treated as zero.

@@ -332,11 +332,35 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         self.assertEqual(rows[0]["effort_source"], "rollout")
 
     def test_diff_reports_added_commands_and_token_delta(self) -> None:
-        left = {"tokens": {"total_tokens": 10}, "commands": ["one"], "read_paths": [], "skills": []}
-        right = {"tokens": {"total_tokens": 15}, "commands": ["one", "two"], "read_paths": [], "skills": []}
+        left = {
+            "tokens": {"total_tokens": 10},
+            "tokens_by_model": {
+                "terra": {"output_tokens": 2, "reasoning_output_tokens": None, "total_tokens": 10}
+            },
+            "commands": ["one"],
+            "read_paths": [],
+            "skills": [],
+        }
+        right = {
+            "tokens": {"total_tokens": 15},
+            "tokens_by_model": {
+                "luna": {"output_tokens": 1, "reasoning_output_tokens": None, "total_tokens": 3},
+                "terra": {"output_tokens": 3, "reasoning_output_tokens": None, "total_tokens": 12},
+            },
+            "commands": ["one", "two"],
+            "read_paths": [],
+            "skills": [],
+        }
         diff = MODULE.diff_results(left, right)
         self.assertEqual(diff["token_delta"]["total_tokens"], 5)
+        self.assertEqual(diff["token_delta_by_model"]["luna"]["total_tokens"], 3)
+        self.assertEqual(diff["token_delta_by_model"]["terra"]["output_tokens"], 1)
+        self.assertIsNone(diff["token_delta_by_model"]["terra"]["reasoning_output_tokens"])
         self.assertEqual(diff["commands"]["added"], ["two"])
+        args = MODULE.build_parser().parse_args(["diff", "left", "right"])
+        rendered = MODULE.render_diff(diff, args)
+        self.assertIn("token delta by model (right-left):", rendered)
+        self.assertIn("reasoning_output=unavailable", rendered)
 
 
 if __name__ == "__main__":

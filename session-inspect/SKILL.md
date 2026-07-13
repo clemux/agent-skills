@@ -21,6 +21,9 @@ Default output is compact and clearly reports omitted items. Use `--all` to show
 all items, `--full-commands` only when exact command bodies are necessary, and
 `--json` for structured downstream processing.
 
+Session diffs report aggregate and per-model token deltas alongside command,
+read-path, and skill changes.
+
 Inspection is strictly local and read-only. Do not combine it with export, copy,
 snapshot, or mutation steps unless the user explicitly requests a separate write
 operation.

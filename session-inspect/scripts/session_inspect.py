@@ -829,10 +829,25 @@ def diff_results(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
         }
 
     token_keys = sorted(set(left.get("tokens", {})) | set(right.get("tokens", {})))
+    left_models = left.get("tokens_by_model", {})
+    right_models = right.get("tokens_by_model", {})
+    token_delta_by_model: dict[str, dict[str, int | None]] = {}
+    for model in sorted(set(left_models) | set(right_models)):
+        left_usage = left_models.get(model, {})
+        right_usage = right_models.get(model, {})
+        model_keys = sorted(set(left_usage) | set(right_usage))
+        token_delta_by_model[model] = {}
+        for key in model_keys:
+            left_value = left_usage.get(key, 0)
+            right_value = right_usage.get(key, 0)
+            token_delta_by_model[model][key] = (
+                None if left_value is None or right_value is None else int(right_value) - int(left_value)
+            )
     return {
         "left": {key: left.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds")},
         "right": {key: right.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds")},
         "token_delta": {key: int(right.get("tokens", {}).get(key, 0)) - int(left.get("tokens", {}).get(key, 0)) for key in token_keys},
+        "token_delta_by_model": token_delta_by_model,
         "commands": changes("commands"),
         "read_paths": changes("read_paths"),
         "skills": changes("skills"),
@@ -845,6 +860,16 @@ def render_diff(diff: dict[str, Any], args: argparse.Namespace) -> str:
         f"right: {diff['right']['harness']} {diff['right'].get('session_id') or 'unknown'} model={diff['right'].get('model') or 'unavailable'} effort={diff['right'].get('effort') or 'unavailable'}",
         "token delta (right-left): " + (" ".join(f"{key}={value:+d}" for key, value in diff["token_delta"].items()) or "unavailable"),
     ]
+    if diff.get("token_delta_by_model"):
+        lines.append("token delta by model (right-left):")
+        for model, usage in diff["token_delta_by_model"].items():
+            values = " ".join(
+                f"{key.removesuffix('_tokens')}={value:+d}"
+                if value is not None
+                else f"{key.removesuffix('_tokens')}=unavailable"
+                for key, value in usage.items()
+            )
+            lines.append(f"- {model}: {values}")
     for key in ("commands", "read_paths", "skills"):
         lines.append(f"{key.replace('_', ' ')}:")
         for direction, prefix in (("removed", "-"), ("added", "+")):
