@@ -1,6 +1,6 @@
 ---
 name: session-inspect
-description: Inspect and compare local Codex rollout and Claude Code JSONL sessions without network access or transcript writes. Use when an agent needs commands, token usage, files or skills read, delegated Codex model/effort provenance, session metadata, or a compact diff between past coding-agent sessions.
+description: Inspect and compare local Codex rollout and Claude Code JSONL sessions without network access or transcript writes. Use when an agent needs commands, total or per-model token usage, input/output and cache breakdowns, files or skills read, delegated Codex model/effort provenance, session metadata, or a compact diff between past coding-agent sessions.
 ---
 
 # Session Inspect

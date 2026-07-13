@@ -49,6 +49,58 @@ class SessionInspectTests(unittest.TestCase):
         self.assertIn("/repo/AGENTS.md", result["read_paths"])
         self.assertIn("/repo/demo.py", result["read_paths"])
 
+    def test_codex_tokens_are_attributed_to_active_model_from_cumulative_deltas(self) -> None:
+        rollout = self.codex_root / "rollout-model-switch.jsonl"
+        write_jsonl(
+            rollout,
+            [
+                {"type": "turn_context", "payload": {"model": "gpt-5.6-terra"}},
+                {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 100, "cached_input_tokens": 40, "output_tokens": 10, "reasoning_output_tokens": 4, "total_tokens": 110}}}},
+                {"type": "turn_context", "payload": {"model": "gpt-5.6-luna"}},
+                {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 160, "cached_input_tokens": 70, "output_tokens": 30, "reasoning_output_tokens": 10, "total_tokens": 190}}}},
+            ],
+        )
+        result = MODULE.inspect_codex(rollout)
+        self.assertEqual(
+            result["tokens_by_model"],
+            {
+                "gpt-5.6-luna": {
+                    "input_tokens": 60,
+                    "cache_read_tokens": 30,
+                    "cache_write_tokens": None,
+                    "output_tokens": 20,
+                    "normal_output_tokens": 14,
+                    "reasoning_output_tokens": 6,
+                    "total_tokens": 80,
+                },
+                "gpt-5.6-terra": {
+                    "input_tokens": 100,
+                    "cache_read_tokens": 40,
+                    "cache_write_tokens": None,
+                    "output_tokens": 10,
+                    "normal_output_tokens": 6,
+                    "reasoning_output_tokens": 4,
+                    "total_tokens": 110,
+                },
+            },
+        )
+        self.assertEqual(sum(row["total_tokens"] for row in result["tokens_by_model"].values()), 190)
+
+    def test_codex_interim_counter_regressions_do_not_double_count(self) -> None:
+        rollout = self.codex_root / "rollout-regression.jsonl"
+        write_jsonl(
+            rollout,
+            [
+                {"type": "turn_context", "payload": {"model": "gpt-5.6-sol"}},
+                {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 100, "cached_input_tokens": 60, "output_tokens": 10, "reasoning_output_tokens": 4, "total_tokens": 110}}}},
+                {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 90, "cached_input_tokens": 55, "output_tokens": 9, "reasoning_output_tokens": 3, "total_tokens": 99}}}},
+                {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 120, "cached_input_tokens": 75, "output_tokens": 15, "reasoning_output_tokens": 5, "total_tokens": 135}}}},
+            ],
+        )
+        result = MODULE.inspect_codex(rollout)
+        self.assertEqual(result["tokens_by_model"]["gpt-5.6-sol"]["total_tokens"], 135)
+        self.assertEqual(result["tokens_by_model"]["gpt-5.6-sol"]["cache_read_tokens"], 75)
+
     def test_current_codex_js_exec_is_decoded(self) -> None:
         thread = "019f0000-0000-7000-8000-000000000002"
         rollout = self.codex_root / f"rollout-{thread}.jsonl"
@@ -146,6 +198,65 @@ class SessionInspectTests(unittest.TestCase):
         self.assertEqual(result["tool_counts"], {"Bash": 1, "Read": 1, "Skill": 1})
         self.assertEqual(result["skills"], ["retro"])
         self.assertEqual(result["tool_output_bytes"], 12)
+
+    def test_claude_tokens_are_grouped_by_message_model_with_cache_writes(self) -> None:
+        transcript = self.claude_root / "project" / "models.jsonl"
+        sonnet = {
+            "id": "sonnet-message",
+            "model": "claude-sonnet-5",
+            "usage": {
+                "input_tokens": 10,
+                "cache_creation_input_tokens": 4,
+                "cache_read_input_tokens": 20,
+                "output_tokens": 6,
+            },
+            "content": [],
+        }
+        opus = {
+            "id": "opus-message",
+            "model": "claude-opus-4-8",
+            "usage": {
+                "input_tokens": 3,
+                "cache_creation_input_tokens": 5,
+                "cache_read_input_tokens": 7,
+                "output_tokens": 8,
+                "reasoning_output_tokens": 2,
+            },
+            "content": [],
+        }
+        write_jsonl(
+            transcript,
+            [
+                {"type": "assistant", "message": sonnet},
+                {"type": "assistant", "message": sonnet},
+                {"type": "assistant", "message": opus},
+            ],
+        )
+        result = MODULE.inspect_claude(transcript, self.codex_root, self.codex_home)
+        self.assertEqual(result["tokens"]["total_tokens"], 63)
+        self.assertEqual(
+            result["tokens_by_model"],
+            {
+                "claude-opus-4-8": {
+                    "input_tokens": 3,
+                    "cache_read_tokens": 7,
+                    "cache_write_tokens": 5,
+                    "output_tokens": 8,
+                    "normal_output_tokens": 6,
+                    "reasoning_output_tokens": 2,
+                    "total_tokens": 23,
+                },
+                "claude-sonnet-5": {
+                    "input_tokens": 10,
+                    "cache_read_tokens": 20,
+                    "cache_write_tokens": 4,
+                    "output_tokens": 6,
+                    "normal_output_tokens": None,
+                    "reasoning_output_tokens": None,
+                    "total_tokens": 40,
+                },
+            },
+        )
 
     def test_heredoc_decoy_does_not_override_raw_exec_flags(self) -> None:
         command = """prompt=$(cat <<'PROMPT'

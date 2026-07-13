@@ -96,6 +96,40 @@ def value_bytes(value: Any) -> int:
     return len(json.dumps(value, ensure_ascii=False).encode("utf-8"))
 
 
+def usage_delta(current: dict[str, Any], previous: dict[str, Any]) -> dict[str, int]:
+    delta: dict[str, int] = {}
+    for key, value in current.items():
+        if not isinstance(value, (int, float)):
+            continue
+        difference = int(value) - int(previous.get(key, 0) or 0)
+        delta[key] = difference if difference >= 0 else int(value)
+    return delta
+
+
+def normalized_model_tokens(
+    usage: dict[str, int], *, harness: str, available: set[str]
+) -> dict[str, int | None]:
+    output = int(usage.get("output_tokens", 0))
+    reasoning_key = "reasoning_output_tokens"
+    reasoning = int(usage.get(reasoning_key, 0)) if reasoning_key in available else None
+    normal_output = max(0, output - reasoning) if reasoning is not None else None
+    if harness == "codex":
+        cache_read = int(usage.get("cached_input_tokens", 0)) if "cached_input_tokens" in available else None
+        cache_write = None
+    else:
+        cache_read = int(usage.get("cache_read_input_tokens", 0))
+        cache_write = int(usage.get("cache_creation_input_tokens", 0))
+    return {
+        "input_tokens": int(usage.get("input_tokens", 0)),
+        "cache_read_tokens": cache_read,
+        "cache_write_tokens": cache_write,
+        "output_tokens": output,
+        "normal_output_tokens": normal_output,
+        "reasoning_output_tokens": reasoning,
+        "total_tokens": int(usage.get("total_tokens", 0)),
+    }
+
+
 def commands_from_js(value: Any) -> list[str]:
     if not isinstance(value, str):
         return []
@@ -240,6 +274,7 @@ def base_result(path: Path, harness: str) -> dict[str, Any]:
         "duration_seconds": None,
         "messages": {"user": 0, "assistant": 0},
         "tokens": {},
+        "tokens_by_model": {},
         "tool_counts": {},
         "tool_output_bytes": 0,
         "max_tool_output_bytes": 0,
@@ -263,6 +298,29 @@ def inspect_codex(path: Path) -> dict[str, Any]:
     first: datetime | None = None
     last: datetime | None = None
     latest_tokens: dict[str, Any] = {}
+    previous_tokens: dict[str, Any] = {}
+    current_model = "unavailable"
+    tokens_by_model: dict[str, Counter[str]] = {}
+    token_fields_by_model: dict[str, set[str]] = {}
+
+    def attribute_model_epoch() -> None:
+        nonlocal previous_tokens
+        if not latest_tokens:
+            return
+        numeric_keys = {
+            key for key, value in latest_tokens.items() if isinstance(value, (int, float))
+        }
+        if any(
+            int(latest_tokens.get(key, 0) or 0) < int(previous_tokens.get(key, 0) or 0)
+            for key in numeric_keys
+        ):
+            tokens_by_model.clear()
+            token_fields_by_model.clear()
+            previous_tokens = {}
+        delta = usage_delta(latest_tokens, previous_tokens)
+        tokens_by_model.setdefault(current_model, Counter()).update(delta)
+        token_fields_by_model.setdefault(current_model, set()).update(latest_tokens)
+        previous_tokens = dict(latest_tokens)
 
     for record, _ in iter_jsonl(path):
         if record.get("_invalid_json"):
@@ -278,8 +336,12 @@ def inspect_codex(path: Path) -> dict[str, Any]:
             result["cwd"] = payload.get("cwd")
             first, last = update_times(first, last, payload.get("timestamp"))
         elif record_type == "turn_context":
+            next_model = str(payload.get("model") or current_model)
+            if next_model != current_model:
+                attribute_model_epoch()
             result["model"] = payload.get("model") or result["model"]
             result["effort"] = payload.get("effort") or payload.get("reasoning_effort") or result["effort"]
+            current_model = next_model
         elif record_type == "event_msg" and payload.get("type") == "token_count":
             info = payload.get("info") if isinstance(payload.get("info"), dict) else {}
             usage = info.get("total_token_usage")
@@ -322,11 +384,18 @@ def inspect_codex(path: Path) -> dict[str, Any]:
                 result["tool_output_bytes"] += size
                 result["max_tool_output_bytes"] = max(result["max_tool_output_bytes"], size)
 
+    attribute_model_epoch()
     result["commands"] = commands
     result["read_paths"] = read_paths
     result["skills"] = [path for path in read_paths if path.endswith("SKILL.md")]
     result["tool_counts"] = dict(sorted(tools.items()))
     result["tokens"] = latest_tokens
+    result["tokens_by_model"] = {
+        model: normalized_model_tokens(
+            dict(usage), harness="codex", available=token_fields_by_model.get(model, set())
+        )
+        for model, usage in sorted(tokens_by_model.items())
+    }
     result["started_at"] = first.isoformat() if first else None
     result["ended_at"] = last.isoformat() if last else None
     result["duration_seconds"] = duration_seconds(first, last)
@@ -336,7 +405,12 @@ def inspect_codex(path: Path) -> dict[str, Any]:
 def claude_usage(message: dict[str, Any]) -> dict[str, int]:
     usage = message.get("usage") if isinstance(message.get("usage"), dict) else {}
     keys = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
-    return {key: int(usage.get(key) or 0) for key in keys}
+    result = {key: int(usage.get(key) or 0) for key in keys}
+    for optional in ("reasoning_output_tokens", "thinking_tokens"):
+        if optional in usage:
+            result["reasoning_output_tokens"] = int(usage.get(optional) or 0)
+            break
+    return result
 
 
 def inspect_claude(path: Path, codex_root: Path, codex_home: Path, include_delegations: bool = True) -> dict[str, Any]:
@@ -351,7 +425,7 @@ def inspect_claude(path: Path, codex_root: Path, codex_home: Path, include_deleg
     tool_seen: set[str] = set()
     user_seen: set[str] = set()
     tool_results_seen: set[str] = set()
-    usage_by_message: dict[str, dict[str, int]] = {}
+    usage_by_message: dict[str, tuple[str, dict[str, int]]] = {}
     assistant_seen: set[str] = set()
     first: datetime | None = None
     last: datetime | None = None
@@ -391,7 +465,8 @@ def inspect_claude(path: Path, codex_root: Path, codex_home: Path, include_deleg
         message = record["message"]
         message_id = str(message.get("id") or record.get("uuid") or record.get("timestamp"))
         assistant_seen.add(message_id)
-        usage_by_message[message_id] = claude_usage(message)
+        message_model = str(message.get("model") or "unavailable")
+        usage_by_message[message_id] = (message_model, claude_usage(message))
         result["model"] = message.get("model") or result["model"]
         content = message.get("content") if isinstance(message.get("content"), list) else []
         for block in content:
@@ -416,9 +491,18 @@ def inspect_claude(path: Path, codex_root: Path, codex_home: Path, include_deleg
                 ordered_add(skills, skill_seen, skill)
 
     totals: Counter[str] = Counter()
-    for usage in usage_by_message.values():
+    tokens_by_model: dict[str, Counter[str]] = {}
+    token_fields_by_model: dict[str, set[str]] = {}
+    for model, usage in usage_by_message.values():
         totals.update(usage)
+        tokens_by_model.setdefault(model, Counter()).update(usage)
+        token_fields_by_model.setdefault(model, set()).update(usage)
     totals["total_tokens"] = sum(totals[key] for key in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens"))
+    for usage in tokens_by_model.values():
+        usage["total_tokens"] = sum(
+            usage[key]
+            for key in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
+        )
     result["messages"] = {"user": len(user_seen), "assistant": len(assistant_seen), "tool_results": len(tool_results_seen)}
     result["commands"] = commands
     result["read_paths"] = read_paths
@@ -428,6 +512,12 @@ def inspect_claude(path: Path, codex_root: Path, codex_home: Path, include_deleg
     result["skills"] = skills
     result["tool_counts"] = dict(sorted(tools.items()))
     result["tokens"] = dict(totals)
+    result["tokens_by_model"] = {
+        model: normalized_model_tokens(
+            dict(usage), harness="claude", available=token_fields_by_model.get(model, set())
+        )
+        for model, usage in sorted(tokens_by_model.items())
+    }
     result["started_at"] = first.isoformat() if first else None
     result["ended_at"] = last.isoformat() if last else None
     result["duration_seconds"] = duration_seconds(first, last)
@@ -684,6 +774,23 @@ def render_result(result: dict[str, Any], args: argparse.Namespace) -> str:
     ]
     if view.get("parent_session_id"):
         lines.insert(2, f"parent: {view['parent_session_id']} | source: {view.get('session_source') or 'unavailable'}")
+    if view.get("tokens_by_model"):
+        lines.append("tokens by model:")
+        token_fields = (
+            "input_tokens",
+            "cache_read_tokens",
+            "cache_write_tokens",
+            "output_tokens",
+            "normal_output_tokens",
+            "reasoning_output_tokens",
+            "total_tokens",
+        )
+        for model, usage in view["tokens_by_model"].items():
+            values = " ".join(
+                f"{key.removesuffix('_tokens')}={usage.get(key) if usage.get(key) is not None else 'unavailable'}"
+                for key in token_fields
+            )
+            lines.append(f"- {model}: {values}")
     for key, label in (("commands", "commands"), ("read_paths", "read paths"), ("skills", "skills")):
         values = view.get(key, [])
         lines.append(f"{label} ({len(result.get(key, []))}):")

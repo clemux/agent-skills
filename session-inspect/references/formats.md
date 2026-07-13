@@ -12,6 +12,10 @@ The inspector streams rollout JSONL and recognizes:
 - `event_msg` `token_count` records; the latest cumulative
   `total_token_usage` snapshot is authoritative and must not be summed.
 
+For per-model usage, attribute the delta between consecutive cumulative token
+snapshots to the active `turn_context.model`. Codex records cached input reads
+and separates reasoning from total output; it does not record cache writes.
+
 Both direct `exec_command` calls and current JavaScript-orchestrated `exec` calls
 are supported.
 
@@ -23,6 +27,11 @@ Claude transcripts may repeat evolving snapshots of the same assistant message.
 Deduplicate usage by `message.id` and tool calls by tool-use ID before summing.
 Recognize `Bash`, `Read`, and `Skill` tool blocks for commands, read paths, and
 skills.
+
+Group token usage by the deduplicated message's `message.model`. Claude records
+cache reads and cache-creation writes. Current transcripts do not separate
+reasoning from normal output; report both subfields as unavailable unless a
+usage record explicitly provides a reasoning/thinking counter.
 
 For nested `codex-runner` agents, discover `agent-*.meta.json` beside the parent
 session's artifact directory. Parse only the actual Codex invocation line from
