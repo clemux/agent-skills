@@ -9,6 +9,8 @@ The inspector streams rollout JSONL and recognizes:
 - `session_meta` for the thread ID, working directory, and initial timestamp.
 - `turn_context` for effective model and reasoning effort.
 - `response_item` function/custom tool calls for commands and output sizes.
+- Top-level `compacted` records for full context-compaction count. The paired
+  `event_msg` `context_compacted` notification is not counted again.
 - `event_msg` `token_count` records; the latest cumulative
   `total_token_usage` snapshot is authoritative and must not be summed.
 
@@ -29,6 +31,10 @@ Claude transcripts may repeat evolving snapshots of the same assistant message.
 Deduplicate usage by `message.id` and tool calls by tool-use ID before summing.
 Recognize `Bash`, `Read`, and `Skill` tool blocks for commands, read paths, and
 skills.
+
+Count `system` records with `subtype: compact_boundary` as full context
+compactions. Do not double-count `isCompactSummary` user records or include
+`microcompact_boundary` maintenance events in this count.
 
 Group token usage by the deduplicated message's `message.model`. Claude records
 cache reads and cache-creation writes separately from native input, so

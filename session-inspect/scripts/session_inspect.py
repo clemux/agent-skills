@@ -276,6 +276,7 @@ def base_result(path: Path, harness: str) -> dict[str, Any]:
         "started_at": None,
         "ended_at": None,
         "duration_seconds": None,
+        "compactions": 0,
         "messages": {"user": 0, "assistant": 0},
         "tokens": {},
         "tokens_by_model": {},
@@ -333,7 +334,9 @@ def inspect_codex(path: Path) -> dict[str, Any]:
         first, last = update_times(first, last, record.get("timestamp"))
         record_type = record.get("type")
         payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
-        if record_type == "session_meta":
+        if record_type == "compacted":
+            result["compactions"] += 1
+        elif record_type == "session_meta":
             result["session_id"] = payload.get("id") or payload.get("session_id")
             result["parent_session_id"] = payload.get("parent_thread_id") or payload.get("forked_from_id")
             result["session_source"] = payload.get("thread_source")
@@ -443,7 +446,9 @@ def inspect_claude(path: Path, codex_root: Path, codex_home: Path, include_deleg
         result["session_id"] = record.get("sessionId") or record.get("session_id") or result["session_id"]
         result["cwd"] = record.get("cwd") or result["cwd"]
         record_type = record.get("type")
-        if record_type == "user":
+        if record_type == "system" and record.get("subtype") == "compact_boundary":
+            result["compactions"] += 1
+        if record_type == "user" and not record.get("isCompactSummary"):
             key = str(record.get("uuid") or record.get("message", {}).get("id") or record.get("timestamp"))
             message = record.get("message") if isinstance(record.get("message"), dict) else {}
             content = message.get("content")
@@ -773,6 +778,7 @@ def render_result(result: dict[str, Any], args: argparse.Namespace) -> str:
         f"cwd: {view.get('cwd') or 'unavailable'}",
         f"latest model: {view.get('model') or 'unavailable'} | effort: {view.get('effort') or 'unavailable'}",
         f"time: {view.get('started_at') or 'unavailable'} -> {view.get('ended_at') or 'unavailable'} ({view.get('duration_seconds') if view.get('duration_seconds') is not None else 'unavailable'}s)",
+        f"compactions: {view.get('compactions', 0)}",
         "messages: " + " ".join(f"{key}={value}" for key, value in view["messages"].items()),
         "tokens: " + (" ".join(f"{key}={value}" for key, value in view["tokens"].items()) or "unavailable"),
         "tools: " + (" ".join(f"{key}={value}" for key, value in view["tool_counts"].items()) or "none"),
@@ -844,8 +850,8 @@ def diff_results(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
                 None if left_value is None or right_value is None else int(right_value) - int(left_value)
             )
     return {
-        "left": {key: left.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds")},
-        "right": {key: right.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds")},
+        "left": {key: left.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds", "compactions")},
+        "right": {key: right.get(key) for key in ("harness", "session_id", "model", "effort", "duration_seconds", "compactions")},
         "token_delta": {key: int(right.get("tokens", {}).get(key, 0)) - int(left.get("tokens", {}).get(key, 0)) for key in token_keys},
         "token_delta_by_model": token_delta_by_model,
         "commands": changes("commands"),
@@ -856,8 +862,8 @@ def diff_results(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
 
 def render_diff(diff: dict[str, Any], args: argparse.Namespace) -> str:
     lines = [
-        f"left: {diff['left']['harness']} {diff['left'].get('session_id') or 'unknown'} model={diff['left'].get('model') or 'unavailable'} effort={diff['left'].get('effort') or 'unavailable'}",
-        f"right: {diff['right']['harness']} {diff['right'].get('session_id') or 'unknown'} model={diff['right'].get('model') or 'unavailable'} effort={diff['right'].get('effort') or 'unavailable'}",
+        f"left: {diff['left']['harness']} {diff['left'].get('session_id') or 'unknown'} model={diff['left'].get('model') or 'unavailable'} effort={diff['left'].get('effort') or 'unavailable'} compactions={diff['left'].get('compactions', 0) or 0}",
+        f"right: {diff['right']['harness']} {diff['right'].get('session_id') or 'unknown'} model={diff['right'].get('model') or 'unavailable'} effort={diff['right'].get('effort') or 'unavailable'} compactions={diff['right'].get('compactions', 0) or 0}",
         "token delta (right-left): " + (" ".join(f"{key}={value:+d}" for key, value in diff["token_delta"].items()) or "unavailable"),
     ]
     if diff.get("token_delta_by_model"):

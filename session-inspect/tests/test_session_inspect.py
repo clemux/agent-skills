@@ -38,6 +38,9 @@ class SessionInspectTests(unittest.TestCase):
                 {"timestamp": "2026-01-01T00:00:01Z", "type": "turn_context", "payload": {"model": "gpt-5.6-terra", "effort": "medium"}},
                 {"timestamp": "2026-01-01T00:00:02Z", "type": "response_item", "payload": {"type": "function_call", "call_id": "call-1", "name": "exec_command", "arguments": json.dumps({"cmd": "cat /repo/AGENTS.md; sed -n '1,20p' /repo/demo.py"})}},
                 {"timestamp": "2026-01-01T00:00:03Z", "type": "response_item", "payload": {"type": "function_call_output", "output": "abc"}},
+                {"timestamp": "2026-01-01T00:00:03Z", "type": "compacted", "payload": {"window_number": 1}},
+                {"timestamp": "2026-01-01T00:00:03Z", "type": "event_msg", "payload": {"type": "context_compacted"}},
+                {"timestamp": "2026-01-01T00:00:03Z", "type": "compacted", "payload": {"window_number": 2}},
                 {"timestamp": "2026-01-01T00:00:04Z", "type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 100, "output_tokens": 10, "total_tokens": 110}}}},
                 {"timestamp": "2026-01-01T00:00:05Z", "type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 140, "output_tokens": 20, "total_tokens": 160}}}},
             ],
@@ -45,6 +48,7 @@ class SessionInspectTests(unittest.TestCase):
         result = MODULE.inspect_codex(rollout)
         self.assertEqual(result["session_id"], thread)
         self.assertEqual(result["tokens"]["total_tokens"], 160)
+        self.assertEqual(result["compactions"], 2)
         self.assertEqual(result["tool_output_bytes"], 3)
         self.assertIn("/repo/AGENTS.md", result["read_paths"])
         self.assertIn("/repo/demo.py", result["read_paths"])
@@ -198,6 +202,10 @@ class SessionInspectTests(unittest.TestCase):
                 {"type": "user", "uuid": "u-1", "sessionId": session, "cwd": "/repo", "timestamp": "2026-01-01T00:00:00Z"},
                 {"type": "assistant", "uuid": "a-1", "sessionId": session, "timestamp": "2026-01-01T00:00:01Z", "message": message},
                 {"type": "assistant", "uuid": "a-2", "sessionId": session, "timestamp": "2026-01-01T00:00:02Z", "message": message},
+                {"type": "system", "subtype": "compact_boundary", "sessionId": session},
+                {"type": "user", "isCompactSummary": True, "sessionId": session, "message": {"content": "summary"}},
+                {"type": "system", "subtype": "microcompact_boundary", "sessionId": session},
+                {"type": "system", "subtype": "compact_boundary", "sessionId": session},
                 {"type": "user", "uuid": "u-tool", "sessionId": session, "timestamp": "2026-01-01T00:00:03Z", "message": {"content": [{"type": "tool_result", "tool_use_id": "tool-1", "content": "result bytes"}]}},
             ],
         )
@@ -207,6 +215,9 @@ class SessionInspectTests(unittest.TestCase):
         self.assertEqual(result["tool_counts"], {"Bash": 1, "Read": 1, "Skill": 1})
         self.assertEqual(result["skills"], ["retro"])
         self.assertEqual(result["tool_output_bytes"], 12)
+        self.assertEqual(result["compactions"], 2)
+        args = MODULE.build_parser().parse_args(["inspect", "unused"])
+        self.assertIn("compactions: 2", MODULE.render_result(result, args))
 
     def test_claude_tokens_are_grouped_by_message_model_with_cache_writes(self) -> None:
         transcript = self.claude_root / "project" / "models.jsonl"
@@ -333,6 +344,7 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
 
     def test_diff_reports_added_commands_and_token_delta(self) -> None:
         left = {
+            "compactions": 1,
             "tokens": {"total_tokens": 10},
             "tokens_by_model": {
                 "terra": {"output_tokens": 2, "reasoning_output_tokens": None, "total_tokens": 10}
@@ -342,6 +354,7 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
             "skills": [],
         }
         right = {
+            "compactions": 3,
             "tokens": {"total_tokens": 15},
             "tokens_by_model": {
                 "luna": {"output_tokens": 1, "reasoning_output_tokens": None, "total_tokens": 3},
@@ -361,6 +374,8 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         rendered = MODULE.render_diff(diff, args)
         self.assertIn("token delta by model (right-left):", rendered)
         self.assertIn("reasoning_output=unavailable", rendered)
+        self.assertIn("compactions=1", rendered)
+        self.assertIn("compactions=3", rendered)
 
 
 if __name__ == "__main__":
