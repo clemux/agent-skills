@@ -23,6 +23,15 @@ THREAD_CONTEXT_RE = re.compile(
     r"([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})",
     re.I,
 )
+AGGREGATE_TOKEN_FIELDS = (
+    "uncached_input_tokens",
+    "cache_read_tokens",
+    "cache_write_tokens",
+    "output_tokens",
+    "normal_output_tokens",
+    "reasoning_output_tokens",
+    "total_tokens",
+)
 
 
 class InspectError(RuntimeError):
@@ -732,7 +741,165 @@ def resolve_target(target: str, codex_root: Path, claude_root: Path) -> tuple[Pa
 
 def inspect_target(target: str, codex_root: Path, claude_root: Path, codex_home: Path) -> dict[str, Any]:
     path, harness = resolve_target(target, codex_root, claude_root)
-    return inspect_codex(path) if harness == "codex" else inspect_claude(path, codex_root, codex_home)
+    result = inspect_codex(path) if harness == "codex" else inspect_claude(path, codex_root, codex_home)
+    attach_native_children(result, path, harness, codex_root, codex_home)
+    return result
+
+
+def aggregate_token_rows(rows: Iterable[dict[str, Any]]) -> dict[str, int | None]:
+    materialized = list(rows)
+    if not materialized:
+        return {}
+    aggregate: dict[str, int | None] = {}
+    for key in AGGREGATE_TOKEN_FIELDS:
+        values = [row.get(key) for row in materialized]
+        aggregate[key] = None if any(value is None for value in values) else sum(int(value) for value in values)
+    return aggregate
+
+
+def aggregate_models(results: Iterable[dict[str, Any]]) -> dict[str, dict[str, int | None]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for result in results:
+        for model, usage in result.get("tokens_by_model", {}).items():
+            grouped.setdefault(model, []).append(usage)
+    return {model: aggregate_token_rows(rows) for model, rows in sorted(grouped.items())}
+
+
+def codex_rollout_index(root: Path) -> dict[str, Path]:
+    index: dict[str, Path] = {}
+    if not root.is_dir():
+        return index
+    for path in root.rglob("*.jsonl"):
+        matches = UUID_RE.findall(path.name)
+        if matches:
+            index.setdefault(matches[-1].lower(), path)
+    return index
+
+
+def codex_native_refs(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    request_keys = ("task_name", "agent_type", "model", "reasoning_effort", "fork_turns")
+    spawns: dict[str, dict[str, Any]] = {}
+    started: dict[str, dict[str, Any]] = {}
+    for record, _ in iter_jsonl(path):
+        payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
+        if record.get("type") == "response_item" and payload.get("type") == "function_call" and payload.get("name") == "spawn_agent":
+            call_id = str(payload.get("call_id") or payload.get("id") or "")
+            if call_id:
+                arguments = decode_json_object(payload.get("arguments"))
+                spawns[call_id] = {key: arguments[key] for key in request_keys if key in arguments}
+        elif record.get("type") == "event_msg" and payload.get("type") == "sub_agent_activity" and payload.get("kind") == "started":
+            thread_id = str(payload.get("agent_thread_id") or "")
+            if thread_id:
+                call_id = str(payload.get("event_id") or "")
+                started[thread_id] = {
+                    "thread_id": thread_id,
+                    "call_id": call_id or None,
+                    "agent_path": payload.get("agent_path"),
+                    "requested": spawns.get(call_id, {}),
+                }
+    matched_call_ids = {str(row.get("call_id") or "") for row in started.values()}
+    unresolved = [
+        {"call_id": call_id, "relationship": "native", "requested": requested}
+        for call_id, requested in spawns.items()
+        if call_id not in matched_call_ids
+    ]
+    return list(started.values()), unresolved
+
+
+def child_row(
+    result: dict[str, Any], *, child_id: str, parent_id: str | None, relationship: str,
+    provenance: str, depth: int, requested: dict[str, Any] | None = None,
+    agent_path: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "harness": result["harness"],
+        "child_id": child_id,
+        "parent_session_id": parent_id,
+        "relationship": relationship,
+        "provenance": provenance,
+        "depth": depth,
+        "agent_path": agent_path,
+        "path": result["path"],
+        "model": result.get("model"),
+        "effort": result.get("effort"),
+        "compactions": result.get("compactions", 0),
+        "tokens": aggregate_token_rows(result.get("tokens_by_model", {}).values()),
+        "tokens_by_model": result.get("tokens_by_model", {}),
+        "requested": requested or {},
+    }
+
+
+def attach_native_children(
+    result: dict[str, Any], path: Path, harness: str, codex_root: Path, codex_home: Path
+) -> None:
+    children: list[dict[str, Any]] = []
+    unresolved: list[dict[str, Any]] = []
+    if harness == "codex":
+        rollout_index = codex_rollout_index(codex_root)
+        visited: set[str] = set()
+
+        def visit(parent_path: Path, parent_id: str | None, depth: int) -> None:
+            refs, missing = codex_native_refs(parent_path)
+            for row in missing:
+                unresolved.append({**row, "parent_session_id": parent_id, "depth": depth})
+            for ref in refs:
+                thread_id = ref["thread_id"]
+                if thread_id in visited:
+                    continue
+                visited.add(thread_id)
+                child_path = rollout_index.get(thread_id.lower())
+                if child_path is None:
+                    unresolved.append({
+                        **ref,
+                        "parent_session_id": parent_id,
+                        "relationship": "native",
+                        "depth": depth,
+                        "reason": "rollout-not-found",
+                    })
+                    continue
+                inspected = inspect_codex(child_path)
+                children.append(child_row(
+                    inspected,
+                    child_id=thread_id,
+                    parent_id=parent_id,
+                    relationship="native",
+                    provenance="sub_agent_activity",
+                    depth=depth,
+                    requested=ref.get("requested"),
+                    agent_path=ref.get("agent_path"),
+                ))
+                visit(child_path, thread_id, depth + 1)
+
+        visit(path, result.get("session_id"), 1)
+    else:
+        artifact_root = path.with_suffix("") / "subagents"
+        if artifact_root.is_dir():
+            for child_path in sorted(artifact_root.rglob("agent-*.jsonl")):
+                inspected = inspect_claude(child_path, codex_root, codex_home, include_delegations=False)
+                child_id = child_path.stem
+                children.append(child_row(
+                    inspected,
+                    child_id=child_id,
+                    parent_id=result.get("session_id"),
+                    relationship="native",
+                    provenance="claude-subagents-directory",
+                    depth=1,
+                ))
+
+    child_models = aggregate_models(children)
+    inclusive_models = aggregate_models([result, *children])
+    result["child_sessions"] = children
+    result["unresolved_children"] = unresolved
+    result["child_tokens_by_model"] = child_models
+    result["inclusive_tokens_by_model"] = inclusive_models
+    result["child_tokens"] = aggregate_token_rows(child_models.values())
+    result["inclusive_tokens"] = aggregate_token_rows(inclusive_models.values())
+    result["child_summary"] = {
+        "resolved": len(children),
+        "unresolved": len(unresolved),
+        "native_resolved": len(children),
+        "native_unresolved": len(unresolved),
+    }
 
 
 def compact_command(command: str, limit: int, full: bool) -> str:
@@ -751,7 +918,7 @@ def capped(values: list[Any], args: argparse.Namespace, command: bool = False) -
 
 def view_result(result: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     view = dict(result)
-    for key in ("commands", "read_paths", "skills", "delegations"):
+    for key in ("commands", "read_paths", "skills", "delegations", "child_sessions", "unresolved_children"):
         selected, omitted = capped(result.get(key, []), args, command=key == "commands")
         if key == "delegations":
             compact_rows: list[dict[str, Any]] = []
@@ -804,6 +971,15 @@ def render_result(result: dict[str, Any], args: argparse.Namespace) -> str:
                 for key in token_fields
             )
             lines.append(f"- {model}: {values}")
+    child_summary = view.get("child_summary", {})
+    if child_summary.get("resolved") or child_summary.get("unresolved"):
+        lines.append(
+            "child sessions: "
+            f"resolved={child_summary.get('resolved', 0)} "
+            f"unresolved={child_summary.get('unresolved', 0)} "
+            f"child_total={view.get('child_tokens', {}).get('total_tokens', 0)} "
+            f"inclusive_total={view.get('inclusive_tokens', {}).get('total_tokens', 0)}"
+        )
     for key, label in (("commands", "commands"), ("read_paths", "read paths"), ("skills", "skills")):
         values = view.get(key, [])
         lines.append(f"{label} ({len(result.get(key, []))}):")

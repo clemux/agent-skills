@@ -1,6 +1,6 @@
 ---
 name: session-inspect
-description: Inspect and compare local Codex rollout and Claude Code JSONL sessions without network access or transcript writes. Use when an agent needs commands, compaction counts, total or per-model token usage, input/output and cache breakdowns, files or skills read, delegated Codex model/effort provenance, session metadata, or a compact diff between past coding-agent sessions.
+description: Inspect and compare local Codex rollout and Claude Code JSONL sessions without network access or transcript writes. Use when an agent needs commands, compaction counts, direct, child, inclusive, total, or per-model token usage, input/output and cache breakdowns, files or skills read, child-session lineage, delegated Codex model/effort provenance, session metadata, or a compact diff between past coding-agent sessions.
 ---
 
 # Session Inspect
@@ -23,6 +23,11 @@ all items, `--full-commands` only when exact command bodies are necessary, and
 
 Session diffs report aggregate and per-model token deltas alongside command,
 read-path, and skill changes.
+
+Direct-session fields keep their original meaning. Native Codex subagents and
+Claude `subagents/` transcripts are reported separately as `child_sessions`,
+`child_tokens`, and `inclusive_tokens`; unresolved child launches remain visible.
+The compact report adds only a one-line child summary when lineage exists.
 
 Inspection is strictly local and read-only. Do not combine it with export, copy,
 snapshot, or mutation steps unless the user explicitly requests a separate write

@@ -23,6 +23,12 @@ from native input so uncached input + cache reads + output reconciles to total.
 Both direct `exec_command` calls and current JavaScript-orchestrated `exec` calls
 are supported.
 
+Native Codex child lineage comes from `sub_agent_activity` records with
+`kind: started`, linked back to the corresponding `spawn_agent` call by
+`event_id`. Resolve the durable `agent_thread_id` to its rollout and verify
+descendants recursively. A spawn with no start record or a start whose rollout
+cannot be found is reported as unresolved rather than included in token totals.
+
 ## Claude Code
 
 Search root: `~/.claude/projects`.
@@ -46,6 +52,11 @@ Omit all-zero model buckets such as Claude API error messages labeled
 `<synthetic>`. The top-level model is the latest observed model, not necessarily
 the only model used in the session.
 
+Native Claude subagents live below the parent transcript's artifact directory at
+`<session>/subagents/agent-*.jsonl`. Their embedded `sessionId` may equal the
+parent ID, so use the artifact filename as the child ID. Inspect and aggregate
+these transcripts separately; do not mutate the parent's direct counters.
+
 For nested `codex-runner` agents, discover `agent-*.meta.json` beside the parent
 session's artifact directory. Parse only the actual Codex invocation line from
 the runner's Bash commands; ignore heredoc bodies. Explicit `-m`/`--model`,
@@ -62,3 +73,8 @@ lengths, report omitted counts, and require explicit flags for expansion.
 Session diffs include both aggregate and per-model token deltas. Missing models
 compare against zero, while provider counters recorded as unavailable remain
 unavailable rather than being treated as zero.
+
+`tokens` and `tokens_by_model` are always direct-session values. Child and
+inclusive aggregates use normalized uncached-input, cache-read, cache-write,
+output, reasoning/normal-output, and total fields. Any aggregate component stays
+unavailable when one contributing session does not expose that counter.

@@ -342,6 +342,63 @@ codex exec -m gpt-5.6-terra -c model_reasoning_effort=medium \"$prompt\"
         self.assertEqual(rows[0]["effort"], "low")
         self.assertEqual(rows[0]["effort_source"], "rollout")
 
+    def test_codex_native_children_are_additive_and_report_failed_spawns(self) -> None:
+        parent_id = "019f0000-0000-7000-8000-000000000010"
+        child_id = "019f0000-0000-7000-8000-000000000011"
+        parent = self.codex_root / f"rollout-{parent_id}.jsonl"
+        child = self.codex_root / f"rollout-{child_id}.jsonl"
+        write_jsonl(
+            parent,
+            [
+                {"type": "session_meta", "payload": {"id": parent_id}},
+                {"type": "turn_context", "payload": {"model": "gpt-parent"}},
+                {"type": "response_item", "payload": {"type": "function_call", "name": "spawn_agent", "call_id": "call-ok", "arguments": json.dumps({"task_name": "child", "model": "gpt-child"})}},
+                {"type": "event_msg", "payload": {"type": "sub_agent_activity", "kind": "started", "event_id": "call-ok", "agent_thread_id": child_id, "agent_path": "/root/child"}},
+                {"type": "response_item", "payload": {"type": "function_call", "name": "spawn_agent", "call_id": "call-failed", "arguments": json.dumps({"task_name": "failed"})}},
+                {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 25, "cached_input_tokens": 10, "output_tokens": 5, "total_tokens": 30}}}},
+            ],
+        )
+        write_jsonl(
+            child,
+            [
+                {"type": "session_meta", "payload": {"id": child_id, "parent_thread_id": parent_id, "thread_source": "subagent"}},
+                {"type": "turn_context", "payload": {"model": "gpt-child", "effort": "medium"}},
+                {"type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"input_tokens": 20, "cached_input_tokens": 8, "output_tokens": 5, "total_tokens": 25}}}},
+            ],
+        )
+
+        result = MODULE.inspect_target(str(parent), self.codex_root, self.claude_root, self.codex_home)
+
+        self.assertEqual(result["tokens"]["total_tokens"], 30)
+        self.assertEqual(result["child_summary"], {"resolved": 1, "unresolved": 1, "native_resolved": 1, "native_unresolved": 1})
+        self.assertEqual(result["child_sessions"][0]["child_id"], child_id)
+        self.assertEqual(result["child_sessions"][0]["requested"]["task_name"], "child")
+        self.assertEqual(result["child_tokens"]["total_tokens"], 25)
+        self.assertEqual(result["inclusive_tokens"]["total_tokens"], 55)
+        args = MODULE.build_parser().parse_args(["inspect", "unused"])
+        self.assertIn("child sessions: resolved=1 unresolved=1 child_total=25 inclusive_total=55", MODULE.render_result(result, args))
+
+    def test_claude_native_subagent_tokens_are_separate_from_direct_tokens(self) -> None:
+        parent_id = "aaaaaaaa-1111-4222-8333-cccccccccccc"
+        parent = self.claude_root / "project" / f"{parent_id}.jsonl"
+        child = parent.with_suffix("") / "subagents" / "agent-child.jsonl"
+        write_jsonl(
+            parent,
+            [{"type": "assistant", "sessionId": parent_id, "message": {"id": "parent-message", "model": "claude-sonnet", "usage": {"input_tokens": 4, "output_tokens": 6}, "content": []}}],
+        )
+        write_jsonl(
+            child,
+            [{"type": "assistant", "sessionId": parent_id, "message": {"id": "child-message", "model": "claude-sonnet", "usage": {"input_tokens": 5, "cache_read_input_tokens": 10, "output_tokens": 5}, "content": []}}],
+        )
+
+        result = MODULE.inspect_target(str(parent), self.codex_root, self.claude_root, self.codex_home)
+
+        self.assertEqual(result["tokens"]["total_tokens"], 10)
+        self.assertEqual(result["child_summary"]["resolved"], 1)
+        self.assertEqual(result["child_sessions"][0]["child_id"], "agent-child")
+        self.assertEqual(result["child_tokens"]["total_tokens"], 20)
+        self.assertEqual(result["inclusive_tokens"]["total_tokens"], 30)
+
     def test_diff_reports_added_commands_and_token_delta(self) -> None:
         left = {
             "compactions": 1,
