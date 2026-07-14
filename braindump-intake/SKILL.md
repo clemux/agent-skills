@@ -1,102 +1,58 @@
 ---
 name: braindump-intake
-description: Turn a free-form user braindump into a reviewed sequence of atomic Obsidian captures or OAW project tasks. Use when the user dumps multiple ideas, requests, follow-ups, or project changes and wants them decomposed, reviewed one at a time, and recorded durably; when they ask for quick versus guided intake; or when a mobile user needs the complete plan restated during an interactive intake.
+description: Turn a free-form user braindump into a reviewed sequence of atomic Obsidian captures or OAW project tasks. Use when the user dumps multiple ideas, requests, follow-ups, or project changes and wants them decomposed, reviewed one at a time, and recorded durably; when they ask for quick versus guided intake; or when a mobile user needs the complete plan restated during interactive intake.
 ---
 
 # Braindump Intake
 
-Convert a raw dump into durable work without making the user design the filing system. Keep an explicit intake ledger, confirm each item before writing it, and end with a complete list of created `obs:` references.
+Convert a raw dump into durable work through a visible ledger and one-at-a-time confirmation. Finish with every successfully created or repaired `obs:` reference.
 
-## Required companion workflows
+## Load companion workflows only when needed
 
-Read and follow the local `oaw` skill for reference resolution and project-task lifecycle. Read and follow `obsidian-capture` before creating captures. Those skills own the current schemas and write commands; do not duplicate or guess them here.
+- Read `oaw` before resolving or repairing an `obs:` reference, or before creating or promoting an OAW task.
+- Read `obsidian-capture` only before writing a capture.
 
-## 1. Establish the intake contract
+Let those skills own current schemas and commands; keep this skill focused on intake decisions.
 
-Ask one question before processing the dump:
+## Initialize the intake
+
+Ask one question unless the user already chose a mode:
 
 > Which detail level should I use by default?
 > 1. **Quick** — confirm a short name and one-sentence goal, record it, and move on.
 > 2. **Guided** — review one decision question at a time and record richer requirements.
 
-Let the user override the mode for any item. Treat the answer as a default, not permission to write every item immediately. Do not write an item until the user has confirmed both its chosen detail level and its essential intent.
+Allow per-item overrides. A default mode is not permission to write unreviewed items.
 
-If the user already specified a mode, acknowledge it and continue without asking again.
+Turn the dump into a numbered ledger:
 
-## 2. Build the intake ledger
+- Keep one item per durable outcome; split independent features, repairs, and workflow improvements.
+- Keep any explicitly requested final meta-task last. Insert later additions before it unless directed otherwise.
+- Preserve completed items and their `obs:` IDs when adding work.
+- Treat repository surveys and other cheap context gathering as preparation, not automatically as durable work.
+- Mirror the ledger in the harness plan/checklist when available.
 
-Decompose the dump into numbered atomic items before reviewing any one item deeply:
+When the user is on mobile or cannot see the plan UI, restate the **complete numbered ledger at every transition**, with `Done`, `In progress`, or `Pending` and any created IDs.
 
-- Keep one item per durable outcome. Split feature work, metadata repair, research leads, and workflow improvements when they can be completed independently.
-- Preserve an explicitly requested final meta-task as the final item. Insert later additions before it unless the user says otherwise.
-- Record cheap context gathering as part of the relevant item or as a non-durable preparation item; do not create a vault note merely for looking around.
-- Add new dump items without deleting, renumbering away, or reopening completed work. Keep already-created `obs:` IDs attached to their items.
-- Use the harness plan/checklist tool when available. The ledger remains the semantic source of truth even if the tool only shows short labels.
+## Process one item at a time
 
-When the user is on mobile or says they cannot see the plan UI, restate the **complete numbered ledger** at every transition: after decomposition, after a decision, after a write, and before the next question. Show each item as `Done`, `In progress`, or `Pending`, including created `obs:` IDs.
+Keep exactly one item `In progress` and repeat this loop.
 
-## 3. Preflight references and cheap context
+1. **Preflight.** Resolve every supplied `obs:` reference. Surface resolver failures verbatim, never guess the target, and add a distinct repair item. Gather only cheap local evidence that improves the next decision, such as the project index, repository instructions, current model, or named prior implementation; do not turn intake into an audit.
 
-Before reviewing or writing an item:
+2. **Review.** In Quick mode, propose a short name and one-sentence outcome. In Guided mode, state the current understanding and ask one scope-changing decision question at a time. Do not turn optional implementation ideas into requirements. Before any write, explicitly confirm the item's chosen mode and essential intent.
 
-1. Resolve every supplied `obs:` reference with `oaw resolve`.
-2. If a reference fails, quote the resolver failure, do not infer its target, and add an explicit repair item to the ledger. Repair only after the user confirms the intended target and the repair's detail level.
-3. Gather cheap local evidence that can remove obvious questions: inspect the relevant project index, repository instructions, directory names, current data model, or a named prior implementation.
-4. Summarize only the evidence that changes the next decision. Do not turn intake into an exhaustive repository audit.
+3. **Route and write.** Choose by outcome:
+   - For a broken-reference repair, have the user identify and confirm the intended existing note, update it in place, rerun resolution, and attach the now-resolving existing ID. Do not create a note solely to represent the repair.
+   - For an actionable change with a known project, create an OAW task. Promote an existing actionable project capture through OAW rather than creating an unrelated task.
+   - For an idea, observation, lead, reminder, or unresolved possibility, create an Obsidian capture.
 
-Reference resolution and context gathering do not authorize a durable write.
+   Load the relevant companion workflow before writing. Explain the proposed artifact when the route is ambiguous, and never batch-write unconfirmed items.
 
-## 4. Review one item at a time
+4. **Update the ledger.** Attach only an ID returned or verified after a successful write, then mark that item `Done`. Keep failures unresolved. Add newly mentioned work without losing completed history or displacing a required final meta-task. Apply the mobile restatement rule, then continue.
 
-Set exactly one item to `In progress`. Do not ask about later items while it is unresolved.
+## Close the intake
 
-### Quick mode
+Finish only when every confirmed durable item has a verified `obs:` reference or an explicit blocker. Report the final numbered ledger, each created ID and outcome, repaired references, and unresolved or deliberately skipped items. Never report planned filenames or IDs as created.
 
-Propose:
-
-- a short task/capture name; and
-- one sentence stating the desired outcome.
-
-Ask the user to confirm or adjust those two fields. Ask an additional question only when the destination, actionability, or meaning is genuinely ambiguous. After confirmation, write the item and move on.
-
-### Guided mode
-
-State the current understanding, then ask **one decision question at a time**. Prefer the question that most changes scope, ownership, or acceptance behavior. Incorporate the answer, restate the ledger when required, and ask the next question only if the item still lacks essential intent.
-
-Before writing, summarize the agreed outcome and key requirements and obtain confirmation. Avoid converting optional implementation ideas into requirements unless the user chose them.
-
-## 5. Choose the durable artifact
-
-Choose based on actionability, not on how long the note would be:
-
-- Create an **OAW task** when the user wants a concrete change or deliverable, the owning project is known, and the outcome is actionable.
-- Create an **Obsidian capture** when the item is an idea, observation, lead, reminder, or unresolved possibility that still needs later triage.
-- If an actionable request starts from an existing project capture, use OAW's capture-promotion workflow rather than creating an unrelated task.
-- Use the owning project's intentional lifecycle. Default unscheduled work to `backlog`; use `todo` only when the user deliberately selects near-term work.
-
-Tell the user which artifact type you propose and why when the choice is not obvious. Then use the companion skill's current command/schema to write it. Never batch-write unconfirmed items.
-
-## 6. Maintain the ledger after each write
-
-After a successful write:
-
-1. Attach the returned durable `obs:` ID to the item.
-2. Mark only that item `Done`.
-3. Preserve failures as unresolved items; do not report a planned ID as created.
-4. Incorporate any newly mentioned work as a new atomic item, keeping the completed history and any required final meta-task intact.
-5. Restate the complete ledger when the mobile rule applies, then start the next pending item.
-
-## 7. Close the intake
-
-Finish only when every confirmed durable item has either a successfully created `obs:` reference or an explicitly reported blocker. Report:
-
-- the final numbered ledger;
-- every created `obs:` ID with a one-line outcome;
-- any repaired reference and what changed;
-- any unresolved or deliberately skipped item.
-
-Do not claim completion from proposed filenames, planned IDs, or partial writes.
-
-## Worked example
-
-Read [worked-example.md](references/worked-example.md) when calibrating the workflow or changing this skill. It records the originating mobile intake: a broken project alias became its own repair item, a quick repository survey found a reusable notification example, feature decisions were reviewed one question at a time, and the explicitly requested process-improvement item remained last.
+Read [worked-example.md](references/worked-example.md) only when maintaining or forward-testing this skill. It captures the originating alias repair, shallow repository survey, one-question reviews, and preserved final workflow task.
