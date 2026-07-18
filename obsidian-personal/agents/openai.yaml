@@ -1,0 +1,4 @@
+interface:
+  display_name: "Obsidian Personal"
+  short_description: "Use the personal Obsidian vault safely."
+  default_prompt: "Use $obsidian-personal to target and operate on the personal Obsidian vault with this machine’s verified CLI behavior."

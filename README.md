@@ -14,6 +14,8 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `gh-issues` | GitHub issue management via `gh` |
 | `gh-pr-review-comments` | Reading and replying to PR review comments |
 | `git-gtr-worktrees` | Worktree creation and cleanup via `git gtr` |
+| `obsidian-capture` | Routes side observations into the personal Obsidian capture workflow |
+| `obsidian-personal` | Supplies personal-vault targeting and machine-specific Obsidian CLI facts |
 | `plan-mode-tdd` | Structures plan-mode output as a TDD-first sequence |
 | `pytest-profiling` | Diagnoses and fixes slow Python test suites |
 | `retro` | Guided end-of-session retrospective, writing to the Obsidian vault |
@@ -27,7 +29,8 @@ Harnesses discover skills in their own directories:
 - Codex — `~/.codex/skills/`
 - Neutral shared root — `~/.agents/skills/`
 
-**Symlink, don't copy.** Run `./install.sh` to link every skill in this repo into all three roots:
+**Symlink, don't copy.** `install.conf` declares which roots load each skill. Run
+`./install.sh` to make the harness roots match that manifest:
 
 ```bash
 ./install.sh            # link skills; refuse to clobber existing real directories
@@ -45,7 +48,7 @@ reconciled deliberately.
 1. Create `<skill-name>/SKILL.md` with `name` and `description` frontmatter. The `description` is
    what the model uses to decide whether to invoke the skill, so it should say both what the skill
    does *and* when to reach for it.
-2. Run `./install.sh` to link it into the harness roots.
+2. Add it to `install.conf`, then run `./install.sh` to link it into the selected roots.
 3. Commit. Skill changes are commit-worthy on their own — an uncommitted skill is one that only
    exists on this machine.
 
