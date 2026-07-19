@@ -15,7 +15,6 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `gh-issues` | GitHub issue management via `gh` |
 | `gh-pr-review-comments` | Reading and replying to PR review comments |
 | `git-gtr-worktrees` | Worktree creation and cleanup via `git gtr` |
-| `obsidian-capture` | Routes side observations into the personal Obsidian capture workflow |
 | `obsidian-personal` | Supplies personal-vault targeting and machine-specific Obsidian CLI facts |
 | `plan-mode-tdd` | Structures plan-mode output as a TDD-first sequence |
 | `pytest-profiling` | Diagnoses and fixes slow Python test suites |

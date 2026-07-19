@@ -21,7 +21,6 @@ fable-workflow-checklist claude
 gh-issues               claude
 gh-pr-review-comments   claude codex
 git-gtr-worktrees       claude codex agents
-obsidian-capture        claude codex agents
 obsidian-personal       claude codex agents
 plan-mode-tdd           none
 pytest-profiling        claude codex agents
