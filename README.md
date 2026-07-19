@@ -10,7 +10,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 
 | Skill | What it does |
 | --- | --- |
-| `accessibility-testing` | WCAG compliance, contrast ratios, Lighthouse audits |
+| `accessibility-testing` | **Historical; not recommended.** Legacy Lighthouse and contrast-checking workflow |
 | `braindump-intake` | Turns multi-item braindumps into reviewed atomic outcomes |
 | `gh-issues` | GitHub issue management via `gh` |
 | `gh-pr-review-comments` | **Historical; not recommended.** Codex users should use the official `gh-address-comments` skill |
