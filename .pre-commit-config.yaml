@@ -3,3 +3,15 @@ repos:
     rev: v0.11.0
     hooks:
     -   id: shellcheck
+-   repo: local
+    hooks:
+    -   id: publication-boundary
+        name: Public-safe shared skill boundary
+        entry: python3 scripts/check_publication_boundary.py
+        language: system
+        pass_filenames: false
+    -   id: publication-boundary-tests
+        name: Publication boundary unit tests
+        entry: python3 -m unittest discover -s tests -p test_publication_boundary.py
+        language: system
+        pass_filenames: false

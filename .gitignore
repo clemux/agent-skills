@@ -1,2 +1,3 @@
 .idea/
 install.conf
+__pycache__/

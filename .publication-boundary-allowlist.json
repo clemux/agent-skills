@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "path": "fable-workflow-checklist/SKILL.md",
+      "rules": ["obs-reference", "private-reference-id"],
+      "reason": "Legacy workflow adapter pending its separately owned backend-neutral extraction."
+    },
+    {
+      "path": "obsidian-personal/SKILL.md",
+      "rules": ["personal-home", "private-marker", "private-reference-id"],
+      "reason": "Legacy personal adapter pending its separately owned template and private-instance split."
+    },
+    {
+      "path": "retro/SKILL.md",
+      "rules": ["tilde-dev", "obs-reference", "private-reference-id"],
+      "reason": "Legacy retrospective adapter pending its separately owned generic-core extraction."
+    },
+    {
+      "path": "tests/test_publication_boundary.py",
+      "rules": [
+        "personal-home",
+        "tilde-dev",
+        "obs-reference",
+        "private-reference-id",
+        "private-marker",
+        "session-identity"
+      ],
+      "reason": "Test fixtures intentionally contain one representative value for every rejected rule."
+    }
+  ]
+}

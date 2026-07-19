@@ -23,7 +23,7 @@ branch this repo is on.
 
 **Never edit a skill through a harness path, and never copy a skill into a harness directory.**
 
-Edit `~/dev/agent-skills/<skill>/SKILL.md` — the real file. If you find yourself writing to
+Edit `<repo>/<skill>/SKILL.md` — the real file. If you find yourself writing to
 `~/.claude/skills/<skill>/` or `~/.codex/skills/<skill>/`, stop: either that path is a symlink (in
 which case use the repo path, so the diff is visible to `git status`) or it is a detached copy (in
 which case editing it creates exactly the drift this repo exists to prevent, and the copy needs
@@ -35,6 +35,31 @@ intended. That was the original motivating failure: a skill created under `~/.co
 invisible to Claude Code until someone noticed by hand.
 
 Run `./install.sh --dry-run` to see which skills are properly linked and which are copies.
+
+## Publication boundary
+
+Treat every tracked file in this repository as if it will be published publicly. Shared skills
+must be portable, backend-neutral, and safe to use without access to one person's machine, vault,
+or project history.
+
+- Do not commit personal or confidential data: usernames, hostnames, absolute personal paths,
+  vault names or IDs, private project identifiers, raw session artifacts, or historical details
+  that identify a private workspace.
+- Do not put Obsidian Agent Workflow lifecycle commands, note schemas, vault conventions, or other
+  OAW-specific orchestration into shared skills. When a workflow has a reusable core and an OAW
+  adapter, keep the backend-neutral core here and the adapter in the OAW repository.
+- A shared skill may depend on files bundled in its own repository package or on official platform
+  capabilities. It must not require a personal helper, private plugin, custom skill, or CLI owned by
+  another repository. Expose an integration seam instead and keep the custom adapter with its
+  owning repository.
+- Examples must use placeholders and generic sample data. Do not paste real command output before
+  redacting paths, IDs, names, and project-specific context.
+
+Run `python3 scripts/check_publication_boundary.py` before committing. The check scans tracked text
+for likely leaks. `.publication-boundary-allowlist.json` is reserved for reviewed false positives
+and explicitly tracked legacy cleanup: each exception must name an exact file, specific rules, and
+a reason. Never add a directory-wide or catch-all exception, and remove an entry as soon as the
+underlying match disappears.
 
 ## Working here
 
@@ -51,9 +76,3 @@ Run `./install.sh --dry-run` to see which skills are properly linked and which a
   commit. Do not leave a working skill uncommitted — it then exists only on one machine, which is
   the same failure mode as drift wearing a different hat.
 - Shell scripts must pass `shellcheck` (enforced by pre-commit).
-
-## Related
-
-The `retro` skill writes into clemux's Obsidian vault via the `oaw` CLI, and records its harness
-mappings in the vault task `AGT-TSK-retro-skill`. Vault-side conventions live with the vault, not
-here; this repo owns the skill text only.
