@@ -8,7 +8,7 @@
     },
     {
       "path": "obsidian-personal/SKILL.md",
-      "rules": ["personal-home", "private-marker", "private-reference-id"],
+      "rules": ["personal-home", "private-marker"],
       "reason": "Legacy personal adapter pending its separately owned template and private-instance split."
     },
     {

@@ -23,6 +23,11 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `s3-troubleshooting` | **Historical; not recommended. May contain incorrect or unsafe instructions.** Legacy S3 permissions and presigned-URL guidance |
 | `session-inspect` | Inspects and compares local Codex and Claude Code session artifacts |
 
+### `obsidian-personal` privacy warning
+
+This machine-specific skill intentionally contains a hard-coded Obsidian vault name and absolute
+vault path. Review and replace both values before reusing the skill on another machine.
+
 ### `pytest-profiling` portability notes
 
 The current workflow assumes `uv`, pytest, and Pyinstrument; includes optimization examples from
