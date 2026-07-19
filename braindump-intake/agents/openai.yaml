@@ -1,4 +1,4 @@
 interface:
   display_name: "Braindump Intake"
-  short_description: "Turn braindumps into reviewed vault work"
-  default_prompt: "Use $braindump-intake to turn this braindump into reviewed Obsidian captures or OAW tasks."
+  short_description: "Turn braindumps into reviewed atomic outcomes"
+  default_prompt: "Use $braindump-intake to turn this braindump into a reviewed sequence of atomic outcomes."

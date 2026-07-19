@@ -11,6 +11,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | Skill | What it does |
 | --- | --- |
 | `accessibility-testing` | WCAG compliance, contrast ratios, Lighthouse audits |
+| `braindump-intake` | Turns multi-item braindumps into reviewed atomic outcomes |
 | `gh-issues` | GitHub issue management via `gh` |
 | `gh-pr-review-comments` | Reading and replying to PR review comments |
 | `git-gtr-worktrees` | Worktree creation and cleanup via `git gtr` |
