@@ -1,18 +1,45 @@
 ---
 name: retro
-description: Run a guided end-of-session retrospective — inventory the session for insights, friction, follow-ups, decisions, token waste, and reusable workflows; discuss them one at a time with the user; convert confirmed follow-ups into owned vault tasks; and write a draft retrospective note via the OAW workflow. Use this whenever the user invokes `/retro` or `$retro`, says "let's do a retrospective", "let's wrap up", "what did we learn", "before we close this out", or otherwise signals that a working session is ending and its lessons should be preserved. Also use when the user wants to review how a session went, capture friction they hit, or turn loose end-of-session observations into durable tasks — even if they never say the word "retrospective".
+description: Run a guided end-of-session retrospective — inventory the session for insights, friction, follow-ups, decisions, token waste, and reusable workflows; discuss them one at a time with the user; convert confirmed follow-ups into owned tasks; and write a durable retrospective note through a pluggable backend. Use this whenever the user invokes `/retro` or `$retro`, says "let's do a retrospective", "let's wrap up", "what did we learn", "before we close this out", or otherwise signals that a working session is ending and its lessons should be preserved. Also use when the user wants to review how a session went, capture friction they hit, or turn loose end-of-session observations into durable tasks — even if they never say the word "retrospective".
 ---
 
 # retro
 
 A retrospective turns a session that is about to be forgotten into durable, owned artifacts:
 lessons the user will actually re-read, and follow-up work that has a home. The session transcript
-disappears; the vault does not.
+disappears; the notes and tasks it produces do not.
 
-This skill runs in Claude Code (`/retro`), Codex (`$retro`), and other harnesses. The source of truth
-is `~/dev/agent-skills/retro/`, symlinked into each harness's skill directory. The core workflow
+This skill runs in Claude Code (`/retro`), Codex (`$retro`), and other harnesses. The core workflow
 below is harness-independent; the **Harness adapters** section at the end says how to do each
-harness-specific step.
+harness-specific step. Where the retro's outputs *go* — tasks, captures, the retro note itself —
+is delegated to a **backend** (see the next section), so the same workflow works whether the user
+keeps notes in a personal knowledge vault, a repo directory, or nothing fancier than markdown.
+
+## Backends: where the durable artifacts live
+
+The workflow needs a backend that can do three things:
+
+1. **Own follow-up work** — create a task or capture with a stable, referenceable identifier.
+2. **Hold the retrospective note** — create a durable note that records the session identifier(s),
+   so the retro can be traced back to its transcript.
+3. **Verify** — confirm after writing that the note actually exists where it should.
+
+**Discovery:** before converting follow-ups (step 4), check the available-skills list for a
+**retro backend adapter** — a skill whose description names itself as a backend or adapter for the
+`retro` skill. If one is installed, read it and use its command mappings for steps 4 and 5 instead
+of the fallback below. The adapter owns the specifics: which CLI to call, which note schema to
+follow, how to link and verify.
+
+**Fallback (no adapter installed):** degrade to plain markdown, and say so.
+
+- The retro note goes to `retrospectives/<YYYY-MM-DD>-<short-slug>.md` in the current project,
+  unless the user names a different home. Ask once if unsure; don't scatter notes silently.
+- Use frontmatter for traceability (`date`, `harness`, `session-id`, `status: draft`) and the
+  section skeleton `## Summary`, `## Observations`, `## Decisions`, `## Follow-ups`,
+  `## Artifacts`.
+- Follow-ups become a checklist under `## Follow-ups`. If the project has an issue tracker the
+  user actually uses (e.g. GitHub issues), offer to file them there instead — a tracked issue is a
+  better owner than a checklist.
 
 ## What makes a retro good (read this before starting)
 
@@ -34,7 +61,7 @@ deliberate constraint, not an oversight.
 
 **Nothing durable without ownership.** A follow-up that becomes a bullet in a retro note and nothing
 else is a follow-up that dies. If an item implies work, it becomes a task or a capture with a real
-ID, and the retro links to it.
+identifier, and the retro links to it.
 
 **Degrade explicitly; never invent evidence.** If you cannot read the transcript, cannot get token
 counts, or cannot resolve the session ID, say so plainly and work from what you can observe. Do not
@@ -68,7 +95,7 @@ items that would change how the next session goes.
 ### 2. Build the agenda as a visible checklist
 
 Put the triaged items into the harness's checklist tool (see adapters) — one entry per item, all
-pending. This is session-local planning state, not a vault surface.
+pending. This is session-local planning state, not a durable artifact.
 
 The checklist exists so that items survive a long discussion: retros branch, the user goes deep on
 item two, and without a durable agenda items five through eight quietly vanish. Mark each item
@@ -87,12 +114,13 @@ Listen for items *they* raise that you missed, and add those to the checklist to
 
 ### 4. Convert follow-ups into owned work — during the discussion, not after
 
-The moment the user confirms an item implies work, give it a home. Doing this inline (rather than
-batching at the end) means the decision is fresh and the retro note can link to a real ID.
+The moment the user confirms an item implies work, give it a home using the backend (adapter
+commands if one is installed; the fallback otherwise). Doing this inline (rather than batching at
+the end) means the decision is fresh and the retro note can link to a real identifier.
 
-- **Actionable work with a clear owner** → `oaw task create --project <alias> --title "..."`
-  (`--status todo` if it's genuinely next-up; default `backlog` otherwise).
-- **An idea, lead, or "maybe later"** → a capture, via the `obsidian-capture` skill.
+- **Actionable work with a clear owner** → a task in the backend's task system.
+- **An idea, lead, or "maybe later"** → a capture, if the backend has a capture mechanism; a
+  `## Follow-ups` entry marked as an idea otherwise.
 - **A gap in the agent tooling itself** → a task in the relevant tooling project, not a vague note.
 - **A correction to how you should work** → this belongs in agent memory or a skill, not just a retro
   bullet. Say so, and offer to make the change.
@@ -115,7 +143,7 @@ detour runs long, and items the user never got to are items the retro failed to 
 
 So when the user starts pulling on an item, name it and offer the fork:
 
-> That's a fresh-session job — I've captured it as `obs:XXX-TSK-thing`. Let's finish the agenda and
+> That's a fresh-session job — I've captured it as `<task-id>`. Let's finish the agenda and
 > you can start it clean.
 
 The handoff is free, because step 4 already produced the artifact a cold session needs: the task
@@ -124,10 +152,10 @@ repo the work actually lives in, not the one the retro happened to run in:
 
 ```bash
 # Claude Code
-cd <repo> && claude "Work on obs:XXX-TSK-thing. Resolve it with the oaw skill, read the task note, and implement it."
+cd <repo> && claude "Work on <task-id>. Read the task, then implement it."
 
 # Codex
-cd <repo> && codex "Work on obs:XXX-TSK-thing. Resolve it with the oaw skill, read the task note, and implement it."
+cd <repo> && codex "Work on <task-id>. Read the task, then implement it."
 ```
 
 Both CLIs take a positional prompt and open an interactive session with it already loaded, so the
@@ -139,35 +167,23 @@ work has its own shape: if you would need to explain it to a fresh session, it b
 
 ### 5. Write the retrospective note
 
-Create the draft:
+Write the note through the backend: with an adapter, follow its note-creation workflow; without
+one, use the fallback path and skeleton from **Backends** above. Either way:
 
-```bash
-oaw retro create --title "<short descriptive title>" --summary "<one paragraph: what this session was>"
-```
+- **Summary first** — one paragraph: what this session was.
+- **Sections as dated, titled blocks** — observations ("What worked", "Friction and lessons"),
+  decisions, follow-ups, artifacts.
+- **Reference follow-ups and artifacts by their identifiers** so they resolve later, and link the
+  retro to the tasks it spawned (bidirectionally, if the backend supports links).
+- **Record the session identifier(s)** in the note so it can be traced back to the transcript.
+  Do not silently write an untraceable note — if the session ID is unavailable, say so and get the
+  user's explicit OK.
 
-This writes `Agents/Retrospectives/<date> <title>.md` with frontmatter (`type`, `status: draft`,
-`provider`, `session-ids`, `id`, `aliases`) and a `## Summary` section. It resolves the session ID
-from the harness environment itself — do not pass one, and do not use
-`--allow-missing-session-id` unless the user explicitly accepts an untraceable note.
-
-Then append each section as a dated block:
-
-```bash
-oaw note observe <RETRO-ID> --section Observations --title "What worked"          --body "- ..."
-oaw note observe <RETRO-ID> --section Observations --title "Friction and lessons" --body "- ..."
-oaw note observe <RETRO-ID> --section Decisions    --title "<what was decided>"   --body "- ..."
-oaw note observe <RETRO-ID> --section Follow-ups   --title "Owned work"           --body "- obs:XXX-TSK-... — ..."
-oaw note observe <RETRO-ID> --section Artifacts    --title "Durable outputs"      --body "- obs:... — ..."
-```
-
-Reference follow-ups and artifacts by `obs:` ID so they resolve later. Link the retro to the tasks it
-spawned with `oaw link ensure-bidirectional ... --write`.
-
-Finally, **verify** — `oaw resolve --meta <RETRO-ID>` to confirm it exists with `session-ids`
-populated, and confirm it appears in `Agents/Retrospectives.base#Recent`. A retro note that didn't
+Finally, **verify** — confirm the note exists at its expected home with the session identifier
+populated (the adapter says how; in the fallback, re-read the file). A retro note that didn't
 actually get written is the one failure mode the user cannot see from the conversation.
 
-Report back with the retro's `obs:` ID and the IDs of everything it spawned.
+Report back with the retro note's identifier or path and the identifiers of everything it spawned.
 
 ## Harness adapters
 
@@ -178,8 +194,7 @@ Report back with the retro's `obs:` ID and the IDs of everything it spawned.
   `in_progress`, `completed`). These may be *deferred* — load their schemas with `ToolSearch` before
   the first call. Older builds expose `TodoWrite` instead, with the same three states; use whichever
   the harness actually offers rather than assuming.
-- **Session ID:** `CLAUDE_CODE_SESSION_ID` (or `CLAUDE_SESSION_ID`) in the Bash environment. `oaw`
-  reads it for you.
+- **Session ID:** `CLAUDE_CODE_SESSION_ID` (or `CLAUDE_SESSION_ID`) in the Bash environment.
 - **Transcript:** `~/.claude/projects/<cwd-with-slashes-as-dashes>/<session-id>.jsonl`. Subagent
   transcripts are nested under the same project directory — read them, since subagent friction is
   invisible from the main conversation.
@@ -201,24 +216,23 @@ Report back with the retro's `obs:` ID and the IDs of everything it spawned.
   ```
 
   Treat these as a starting point — explore the JSONL rather than trusting a fixed schema, since it
-  changes between builds. The `session-report` skill, if installed, already builds a fuller usage
-  report (tokens, cache, subagents, skills, expensive prompts) from these files; prefer it over
-  re-deriving the numbers by hand.
+  changes between builds. If a session-analysis skill is installed (e.g. `session-inspect` or
+  `session-report`), prefer it over re-deriving the numbers by hand.
 
 ### Codex
 
 - **Invocation:** `$retro`.
 - **Checklist tool:** `update_plan` (states `pending`, `in_progress`, `completed`).
-- **Session ID:** `CODEX_THREAD_ID`. `oaw` reads it for you.
-- **Transcript:** rollout JSONL under `~/.codex/sessions/`. `oaw session lookup <thread-id> --verbose`
-  reports timestamps, duration, turn count, and cumulative token usage from
-  `total_token_usage` — use it instead of hand-parsing the rollout.
+- **Session ID:** `CODEX_THREAD_ID`.
+- **Transcript:** rollout JSONL under `~/.codex/sessions/`. Cumulative token usage lives in the
+  rollout's `total_token_usage` records; if a session-analysis skill is installed (e.g.
+  `session-inspect`), prefer it over hand-parsing the rollout.
 
-### Other harnesses (OMP and beyond)
+### Other harnesses
 
 Not yet mapped. Before running a retro in an unmapped harness, work out its invocation, checklist
 tool, session-ID variable, and transcript location; run the retro with whatever subset is available;
-and record the mapping in `obs:AGT-TSK-retro-skill` so the next session doesn't rediscover it.
+and record the mapping in this skill so the next session doesn't rediscover it.
 
 If a harness has **no checklist tool**, keep the agenda in a scratch markdown file and re-read it
 between items — the failure mode this guards against (losing pending items in a long discussion) is
@@ -228,7 +242,5 @@ invisible.
 
 ## Related
 
-- `obs:AGT-TSK-retro-skill` — the task this skill implements; record harness mappings there.
-- `obs:AGT-TSK-session-retrospectives` — the habit this supports.
-- The `oaw` skill — task lifecycle, note intake, retro creation, session snapshots.
-- The `obsidian-capture` skill — for parking ideas that aren't yet actionable work.
+- A **retro backend adapter** skill, if installed — owns where tasks, captures, and the retro note
+  live. This skill defines the workflow; the adapter defines the storage.

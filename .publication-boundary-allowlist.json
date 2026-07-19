@@ -5,11 +5,6 @@
       "path": "obsidian-personal/SKILL.md",
       "rules": ["personal-home", "private-marker"],
       "reason": "Legacy personal adapter pending its separately owned template and private-instance split."
-    },
-    {
-      "path": "retro/SKILL.md",
-      "rules": ["tilde-dev", "obs-reference", "private-reference-id"],
-      "reason": "Legacy retrospective adapter pending its separately owned generic-core extraction."
     }
   ]
 }

@@ -18,7 +18,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `obsidian-personal` | Supplies personal-vault targeting and machine-specific Obsidian CLI facts |
 | `plan-mode-tdd` | **Historical; not recommended.** Structures plan-mode output as a TDD-first sequence |
 | `pytest-profiling` | Diagnoses and fixes slow Python test suites |
-| `retro` | Guided end-of-session retrospective, writing to the Obsidian vault |
+| `retro` | Guided end-of-session retrospective with pluggable storage backends |
 | `s3-troubleshooting` | **Historical; not recommended. May contain incorrect or unsafe instructions.** Legacy S3 permissions and presigned-URL guidance |
 | `session-inspect` | Inspects and compares local Codex and Claude Code session artifacts |
 | `workflow-fanout-checklist` | Claude Workflow fan-out safety checklist |
