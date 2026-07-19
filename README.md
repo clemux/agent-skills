@@ -21,6 +21,15 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `retro` | Guided end-of-session retrospective, writing to the Obsidian vault |
 | `s3-troubleshooting` | S3 permissions, policies, presigned URLs |
 
+### `pytest-profiling` portability notes
+
+The current workflow assumes `uv`, pytest, and Pyinstrument; includes optimization examples from
+bcrypt, PostgreSQL, ASGI applications, and RSA-heavy suites; and expects profiling to lead to
+edits, commits, and a written report. Test runs may also mutate project databases, services,
+caches, or files. To make it more generic, detect the project's runner, treat example fixes and
+timings as hypotheses, compare repeated measurements, and make edits, reports, and commits
+conditional on the requested scope.
+
 ## Installing
 
 Harnesses discover skills in their own directories:
