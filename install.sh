@@ -4,9 +4,10 @@
 # Symlinks, never copies: a copy in a harness directory drifts silently from the
 # repo, and nothing tells you which version is authoritative.
 #
-# Targets are declared per skill in install.conf. This script makes the harness
-# roots match that table exactly: it links the roots a skill targets and removes
-# it from the roots it does not.
+# Targets are declared per skill in the ignored, machine-local install.conf.
+# install.conf.sample provides the tracked starting point. This script makes the
+# local table exact: it links the roots a skill targets and removes it from the
+# roots it does not.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,7 +40,11 @@ for arg in "$@"; do
     esac
 done
 
-[ -f "$MANIFEST" ] || { echo "missing $MANIFEST" >&2; exit 2; }
+[ -f "$MANIFEST" ] || {
+    echo "missing $MANIFEST" >&2
+    echo "copy $REPO/install.conf.sample to $MANIFEST and customize it for this machine" >&2
+    exit 2
+}
 
 declare -A TARGETS=()
 while read -r skill roots; do

@@ -1,4 +1,7 @@
-# Which harness roots each skill is installed into.
+# Portable default mapping for harness roots.
+#
+# Copy this file to the ignored, machine-local install.conf and customize that
+# copy for the harnesses installed on the current machine.
 #
 #   claude  ~/.claude/skills
 #   codex   ~/.codex/skills
@@ -9,19 +12,19 @@
 # error, not a default: leaving "where does this go?" implicit is how the harness
 # roots drifted apart in the first place.
 #
-# install.sh links the listed roots and *removes* the unlisted ones, so this table
-# is the whole truth about what each harness sees.
+# install.sh reads install.conf, links its listed roots, and *removes* the
+# unlisted ones. Keep this sample complete so a fresh local copy is valid.
 
-accessibility-testing   none
-braindump-intake        claude codex
+accessibility-testing   claude
+braindump-intake        claude codex agents
 fable-workflow-checklist claude
 gh-issues               claude
 gh-pr-review-comments   claude codex
-git-gtr-worktrees       claude codex
-obsidian-capture        claude codex
-obsidian-personal       claude codex
+git-gtr-worktrees       claude codex agents
+obsidian-capture        claude codex agents
+obsidian-personal       claude codex agents
 plan-mode-tdd           none
-pytest-profiling        claude codex
+pytest-profiling        claude codex agents
 retro                   claude codex agents
 s3-troubleshooting      claude codex
 session-inspect         claude codex agents

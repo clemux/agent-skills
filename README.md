@@ -29,8 +29,16 @@ Harnesses discover skills in their own directories:
 - Codex — `~/.codex/skills/`
 - Neutral shared root — `~/.agents/skills/`
 
-**Symlink, don't copy.** `install.conf` declares which roots load each skill. Run
-`./install.sh` to make the harness roots match that manifest:
+**Symlink, don't copy.** `install.conf.sample` provides the repository's default harness
+mapping. Copy it to the ignored, machine-local `install.conf`, adjust the targets for the
+harnesses installed on this machine, then run `./install.sh`:
+
+```bash
+cp install.conf.sample install.conf
+```
+
+`install.sh` requires every skill to appear in the local manifest, including skills mapped to
+`none`, and makes the harness roots match that manifest:
 
 ```bash
 ./install.sh            # link skills; refuse to clobber existing real directories
@@ -48,7 +56,8 @@ reconciled deliberately.
 1. Create `<skill-name>/SKILL.md` with `name` and `description` frontmatter. The `description` is
    what the model uses to decide whether to invoke the skill, so it should say both what the skill
    does *and* when to reach for it.
-2. Add it to `install.conf`, then run `./install.sh` to link it into the selected roots.
+2. Add its portable default mapping to `install.conf.sample` and add it to your local
+   `install.conf`, then run `./install.sh` to link it into the selected roots.
 3. Commit. Skill changes are commit-worthy on their own — an uncommitted skill is one that only
    exists on this machine.
 

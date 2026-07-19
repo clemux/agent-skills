@@ -4,10 +4,12 @@ This repository is the single source of truth for shared agent skills. Harnesses
 Codex, and the neutral `~/.agents/skills` root) reach each skill through a symlink back to this
 repo.
 
-Not every skill goes to every harness. `install.conf` maps each skill to the roots that should
-load it, and `install.sh` makes the roots match that table — linking the roots a skill targets and
-removing it from the roots it does not. A skill missing from `install.conf` is an error rather than
-a default, because leaving "where does this go?" implicit is how the roots drifted apart before.
+Not every skill goes to every harness. `install.conf.sample` records the portable default mapping;
+each machine copies it to the ignored `install.conf` and adjusts that local manifest for its
+installed harnesses. `install.sh` makes the roots match the local table — linking the roots a skill
+targets and removing it from the roots it does not. A skill missing from the local `install.conf`
+is an error rather than a default, because leaving "where does this go?" implicit is how the roots
+drifted apart before.
 
 ## The working tree is the deployed state
 
@@ -40,8 +42,8 @@ Run `./install.sh --dry-run` to see which skills are properly linked and which a
   `scripts/`, `references/`, `assets/`. The `name` must match the directory name.
 - The `description` frontmatter is the sole trigger mechanism — it must say what the skill does
   *and* the situations that should invoke it. A skill that never triggers is dead code.
-- New skills need an `install.conf` entry and a run of `./install.sh` before any harness can see
-  them.
+- New skills need a portable default entry in `install.conf.sample`, a matching entry in the
+  machine-local `install.conf`, and a run of `./install.sh` before any harness can see them.
 - A bundled script must be runnable from any harness. Document the plain command it wraps, and never
   depend on a harness-specific variable to find it — a path that only resolves in one harness is a
   skill that silently does nothing in the others.
