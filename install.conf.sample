@@ -15,15 +15,15 @@
 # install.sh reads install.conf, links its listed roots, and *removes* the
 # unlisted ones. Keep this sample complete so a fresh local copy is valid.
 
-accessibility-testing   claude
+accessibility-testing   none
 braindump-intake        claude codex agents
 fable-workflow-checklist claude
 gh-issues               claude
-gh-pr-review-comments   claude codex
+gh-pr-review-comments   none
 git-gtr-worktrees       claude codex agents
 obsidian-personal       claude codex agents
 plan-mode-tdd           none
 pytest-profiling        claude codex agents
 retro                   claude codex agents
-s3-troubleshooting      claude codex
+s3-troubleshooting      none
 session-inspect         claude codex agents
