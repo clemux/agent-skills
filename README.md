@@ -19,7 +19,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `plan-mode-tdd` | **Historical; not recommended.** Structures plan-mode output as a TDD-first sequence |
 | `pytest-profiling` | Diagnoses and fixes slow Python test suites |
 | `retro` | Guided end-of-session retrospective, writing to the Obsidian vault |
-| `s3-troubleshooting` | S3 permissions, policies, presigned URLs |
+| `s3-troubleshooting` | **Historical; not recommended. May contain incorrect or unsafe instructions.** Legacy S3 permissions and presigned-URL guidance |
 
 ### `pytest-profiling` portability notes
 
