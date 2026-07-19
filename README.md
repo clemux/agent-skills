@@ -20,6 +20,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `pytest-profiling` | Diagnoses and fixes slow Python test suites |
 | `retro` | Guided end-of-session retrospective, writing to the Obsidian vault |
 | `s3-troubleshooting` | **Historical; not recommended. May contain incorrect or unsafe instructions.** Legacy S3 permissions and presigned-URL guidance |
+| `session-inspect` | Inspects and compares local Codex and Claude Code session artifacts |
 
 ### `pytest-profiling` portability notes
 
@@ -29,6 +30,13 @@ edits, commits, and a written report. Test runs may also mutate project database
 caches, or files. To make it more generic, detect the project's runner, treat example fixes and
 timings as hypotheses, compare repeated measurements, and make edits, reports, and commits
 conditional on the requested scope.
+
+### `session-inspect` privacy notes
+
+Default output is compact, local, and read-only. Detailed, uncapped, full-command, or JSON output
+may reproduce sensitive paths, commands, repository names, prompts, or credentials stored in the
+source transcripts; review it before sharing. The parser also depends on evolving Codex and Claude
+Code artifact formats and may require updates as those harnesses change.
 
 ## Installing
 
