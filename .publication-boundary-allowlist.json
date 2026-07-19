@@ -15,18 +15,6 @@
       "path": "retro/SKILL.md",
       "rules": ["tilde-dev", "obs-reference", "private-reference-id"],
       "reason": "Legacy retrospective adapter pending its separately owned generic-core extraction."
-    },
-    {
-      "path": "tests/test_publication_boundary.py",
-      "rules": [
-        "personal-home",
-        "tilde-dev",
-        "obs-reference",
-        "private-reference-id",
-        "private-marker",
-        "session-identity"
-      ],
-      "reason": "Test fixtures intentionally contain one representative value for every rejected rule."
     }
   ]
 }

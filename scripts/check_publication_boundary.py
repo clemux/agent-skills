@@ -14,8 +14,7 @@ from typing import Iterable
 
 
 ALLOWLIST_NAME = ".publication-boundary-allowlist.json"
-PRIVATE_PREFIXES = ("AGT", "OAW", "PMX", "FAB", "CDX", "SR")
-PRIVATE_MARKERS = ("cle" + "mux-personal", "cle" + "mux", "Plant" + "Mux")
+LOCAL_CONFIG_NAME = ".publication-boundary-local.json"
 
 
 @dataclass(frozen=True)
@@ -32,21 +31,13 @@ class Match:
     excerpt: str
 
 
-RULES = (
+BASE_RULES = (
     Rule(
         "personal-home",
         re.compile(r"/home/(?!<(?:user|username)>/)(?!user/)(?!example/)[A-Za-z0-9._-]+/"),
     ),
     Rule("tilde-dev", re.compile(r"~/" + r"dev(?:/|\b)")),
     Rule("obs-reference", re.compile(r"\bobs:[A-Za-z0-9][A-Za-z0-9-]*\b")),
-    Rule(
-        "private-reference-id",
-        re.compile(rf"\b(?:{'|'.join(PRIVATE_PREFIXES)})-[A-Z0-9][A-Za-z0-9-]*\b"),
-    ),
-    Rule(
-        "private-marker",
-        re.compile(rf"\b(?:{'|'.join(re.escape(value) for value in PRIVATE_MARKERS)})\b"),
-    ),
     Rule(
         "session-identity",
         re.compile(
@@ -56,7 +47,8 @@ RULES = (
         ),
     ),
 )
-RULE_NAMES = frozenset(rule.name for rule in RULES)
+LOCAL_RULE_NAMES = frozenset(("private-reference-id", "private-marker"))
+RULE_NAMES = frozenset(rule.name for rule in BASE_RULES) | LOCAL_RULE_NAMES
 
 
 class BoundaryError(ValueError):
@@ -103,11 +95,63 @@ def tracked_text(root: Path, paths: Iterable[str]) -> dict[str, str]:
     return files
 
 
-def find_matches(files: dict[str, str]) -> list[Match]:
+def build_local_rules(prefixes: list[str], markers: list[str]) -> tuple[Rule, ...]:
+    rules: list[Rule] = []
+    if prefixes:
+        rules.append(
+            Rule(
+                "private-reference-id",
+                re.compile(
+                    rf"\b(?:{'|'.join(re.escape(value.strip()) for value in prefixes)})-"
+                    r"[A-Z0-9][A-Za-z0-9-]*\b"
+                ),
+            )
+        )
+    if markers:
+        rules.append(
+            Rule(
+                "private-marker",
+                re.compile(
+                    rf"\b(?:{'|'.join(re.escape(value.strip()) for value in markers)})\b"
+                ),
+            )
+        )
+    return tuple(rules)
+
+
+def load_local_rules(root: Path) -> tuple[Rule, ...]:
+    path = root / LOCAL_CONFIG_NAME
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return ()
+    except json.JSONDecodeError as error:
+        raise BoundaryError(f"invalid {LOCAL_CONFIG_NAME}: {error}") from error
+
+    if not isinstance(data, dict) or data.get("version") != 1:
+        raise BoundaryError(f"{LOCAL_CONFIG_NAME} must be an object with version 1")
+
+    prefixes = data.get("private_reference_prefixes", [])
+    markers = data.get("private_markers", [])
+    for name, values in (
+        ("private_reference_prefixes", prefixes),
+        ("private_markers", markers),
+    ):
+        if not isinstance(values, list) or not all(
+            isinstance(value, str) and value.strip() for value in values
+        ):
+            raise BoundaryError(f"{LOCAL_CONFIG_NAME} {name} must be a string list")
+
+    return build_local_rules(prefixes, markers)
+
+
+def find_matches(
+    files: dict[str, str], rules: Iterable[Rule] = BASE_RULES
+) -> list[Match]:
     matches: list[Match] = []
     for path, content in sorted(files.items()):
         for line_number, line in enumerate(content.splitlines(), start=1):
-            for rule in RULES:
+            for rule in rules:
                 if rule.pattern.search(line):
                     matches.append(Match(path, line_number, rule.name, line.strip()[:200]))
     return matches
@@ -155,7 +199,9 @@ def load_exceptions(root: Path) -> dict[tuple[str, str], str]:
 
 
 def audit(
-    matches: Iterable[Match], exceptions: dict[tuple[str, str], str]
+    matches: Iterable[Match],
+    exceptions: dict[tuple[str, str], str],
+    active_rules: frozenset[str] = RULE_NAMES,
 ) -> tuple[list[Match], list[tuple[str, str]]]:
     used: set[tuple[str, str]] = set()
     violations: list[Match] = []
@@ -165,7 +211,10 @@ def audit(
             used.add(key)
         else:
             violations.append(match)
-    stale = sorted(set(exceptions) - used)
+    active_exceptions = {
+        key for key in exceptions if key[1] in active_rules
+    }
+    stale = sorted(active_exceptions - used)
     return violations, stale
 
 
@@ -174,13 +223,17 @@ def main() -> int:
         root = repository_root()
         paths = tracked_paths(root)
         files = tracked_text(root, paths)
+        rules = BASE_RULES + load_local_rules(root)
         exceptions = load_exceptions(root)
         missing_paths = sorted({path for path, _ in exceptions if path not in paths})
         if missing_paths:
             raise BoundaryError(
                 "allowlist paths are not tracked: " + ", ".join(missing_paths)
             )
-        violations, stale = audit(find_matches(files), exceptions)
+        active_rules = frozenset(rule.name for rule in rules)
+        violations, stale = audit(
+            find_matches(files, rules), exceptions, active_rules
+        )
     except (BoundaryError, subprocess.CalledProcessError) as error:
         print(f"publication-boundary: configuration error: {error}", file=sys.stderr)
         return 2

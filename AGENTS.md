@@ -59,7 +59,10 @@ Run `python3 scripts/check_publication_boundary.py` before committing. The check
 for likely leaks. `.publication-boundary-allowlist.json` is reserved for reviewed false positives
 and explicitly tracked legacy cleanup: each exception must name an exact file, specific rules, and
 a reason. Never add a directory-wide or catch-all exception, and remove an entry as soon as the
-underlying match disappears.
+underlying match disappears. Machine-specific private markers belong in the ignored
+`.publication-boundary-local.json`; copy `.publication-boundary-local.sample.json` as a starting
+point and replace its fictional values locally. Public checkouts still enforce the universal rules
+when that file is absent.
 
 ## Working here
 
