@@ -1,4 +1,5 @@
 .idea/
+.worktrees/
 install.conf
 .publication-boundary-local.json
 __pycache__/
