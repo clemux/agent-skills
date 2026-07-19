@@ -31,12 +31,62 @@ caches, or files. To make it more generic, detect the project's runner, treat ex
 timings as hypotheses, compare repeated measurements, and make edits, reports, and commits
 conditional on the requested scope.
 
-### `session-inspect` privacy notes
+### `session-inspect`
+
+#### Privacy notes
 
 Default output is compact, local, and read-only. Detailed, uncapped, full-command, or JSON output
 may reproduce sensitive paths, commands, repository names, prompts, or credentials stored in the
 source transcripts; review it before sharing. The parser also depends on evolving Codex and Claude
 Code artifact formats and may require updates as those harnesses change.
+
+#### Example
+
+These outputs were captured concurrently from an actual long Codex session. The `session-inspect`
+session ID and the identifying fields from the matching `ccusage` record were omitted.
+
+`session-inspect` compact output:
+
+```text
+codex <session-id> | gpt-5.6-sol/high | 2h31m | compactions=1
+tokens direct=22.86M child=1.51M inclusive=24.38M
+input uncached=715.3K cache-read=22.06M cache-write=unavailable | output=86.3K reasoning=42.8K
+activity messages=36/85 tools=181 commands=135 reads=35 skills=16
+children resolved=10 (native=10 shell=0) unresolved=0
+```
+
+The matching `ccusage 20.0.17` record, selected from:
+
+```bash
+ccusage codex session --json --offline --no-cost
+```
+
+```json
+{
+  "inputTokens": 727279,
+  "cacheReadTokens": 22681856,
+  "cacheCreationTokens": 0,
+  "outputTokens": 90542,
+  "reasoningOutputTokens": 44854,
+  "totalTokens": 23499677,
+  "models": {
+    "gpt-5.6-sol": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 22681856,
+      "inputTokens": 727279,
+      "isFallback": false,
+      "outputTokens": 90542,
+      "reasoningOutputTokens": 44854,
+      "totalTokens": 23499677
+    }
+  }
+}
+```
+
+The totals disagree even though the reads were concurrent: `session-inspect` reported about 22.86M
+direct tokens and 24.38M inclusive tokens, while `ccusage` reported 23,499,677 tokens for the
+matching parent session. Treat figures from different inspectors as tool-specific measurements;
+their snapshot and child-session aggregation rules are not interchangeable.
 
 ## Installing
 
