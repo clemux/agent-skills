@@ -16,7 +16,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `gh-pr-review-comments` | **Historical; not recommended.** Codex users should use the official `gh-address-comments` skill |
 | `git-gtr-worktrees` | Worktree creation and cleanup via `git gtr` |
 | `obsidian-personal` | Supplies personal-vault targeting and machine-specific Obsidian CLI facts |
-| `plan-mode-tdd` | Structures plan-mode output as a TDD-first sequence |
+| `plan-mode-tdd` | **Historical; not recommended.** Structures plan-mode output as a TDD-first sequence |
 | `pytest-profiling` | Diagnoses and fixes slow Python test suites |
 | `retro` | Guided end-of-session retrospective, writing to the Obsidian vault |
 | `s3-troubleshooting` | S3 permissions, policies, presigned URLs |
