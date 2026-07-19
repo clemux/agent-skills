@@ -99,7 +99,7 @@ Override configured tools only when needed:
 
 ```bash
 git gtr editor feature-name --editor vscode
-git gtr ai feature-name --ai codex -- --model gpt-5
+git gtr ai feature-name --ai codex -- --model gpt-5.6-sol
 ```
 
 ## Run Commands
