@@ -1,14 +1,14 @@
 ---
-name: fable-workflow-checklist
-description: Gate a Claude Code ultracode / Workflow script through an approval checklist before it runs, catching agents that silently inherit an expensive model. Use when preparing, reviewing, or approving a Workflow script from an expensive main session (Fable, Opus), whenever a task is about to fan out into subagents, and before answering "should this be a workflow at all?".
+name: workflow-fanout-checklist
+description: Gate a Claude Code ultracode / Workflow script through an approval checklist before it runs, catching agents that silently inherit an expensive model. Use when preparing, reviewing, or approving a Workflow script from an expensive main session (e.g. Fable, Opus), whenever a task is about to fan out into subagents, and before answering "should this be a workflow at all?".
 ---
 
-# Fable Workflow Checklist
+# Workflow Fan-out Checklist
 
 A workflow script decides how many agents run and on which model, and the approval dialog only
 shows what the script declares. An `agent()` call that omits `model` inherits the main session's
 model — so a script that reads like cheap parallel reader work can quietly bill fifteen agents at
-Fable rates, and nothing in the dialog says so. This skill is the gate.
+the main session's rates, and nothing in the dialog says so. This skill is the gate.
 
 Two rules make it work: the checklist is a file, not something you recall from memory, and the
 verification is done by a *different* agent than the one that wrote the script. An author checking
@@ -21,17 +21,21 @@ single source of truth for both you and the verifier — do not paraphrase it in
 prompt.
 
 **2. Write the script and the justification together.** The message that asks for approval must
-state lane, model choice, agent count, concurrency, stop condition, and why fan-out beats Codex or
-the main session here. If you cannot write that paragraph honestly, the answer to "should this be a
-workflow?" is no — say so and do the work inline.
+state lane, model choice, agent count, concurrency, stop condition, and why fan-out beats a single
+cheaper agent or the main session here. If you cannot write that paragraph honestly, the answer to
+"should this be a workflow?" is no — say so and do the work inline.
 
-**3. Launch an Opus verifier.** Save the script to a file first, then spawn a *separate* agent
-against it:
+**3. Launch an independent verifier.** Save the script to a file first, then spawn a *separate*
+agent against it. Pin the verifier's model explicitly: sufficiently capable to read a script
+against a checklist, and cheaper than the model that authored the script. The verifier reads a
+script and a checklist, which is not a job for the most expensive model available — this skill
+would be hypocritical otherwise. From a Fable main session, for example, an Opus verifier is
+appropriate; from an Opus session, Sonnet.
 
 ```
 Agent(
   subagent_type: "general-purpose",
-  model: "opus",
+  model: "<explicitly pinned; cheaper than the authoring model>",
   description: "Verify workflow script",
   run_in_background: false,
   prompt: """
@@ -51,9 +55,6 @@ Agent(
 )
 ```
 
-Use Opus even when the main session is Fable — the verifier reads a script and a checklist, which
-is not a Fable-worthy task, and this skill would be hypocritical otherwise.
-
 **4. Review the verdict, then decide.** The verifier reports; you decide. Do not accept a PASS whose
 quoted evidence you cannot see, and do not overrule a FAIL by re-reading the script yourself — fix
 the script and re-verify. Any mandatory FAIL means the script does not run as written.
@@ -67,9 +68,3 @@ things the user should know they are consenting to.
 A single `agent()` call for a bounded lookup is delegation, not fan-out — this skill is not a tax on
 every subagent. It applies when a `Workflow` script is involved, or when a fan-out is large enough
 that the model choice is a real cost decision.
-
-## Related
-
-The mandatory model item is backstopped mechanically by the vault task `FAB-TSK-workflow-model-guard`;
-this skill is the human-facing half of that pair. The checklist's source of record is
-`obs:FAB-TSK-workflow-approval`.

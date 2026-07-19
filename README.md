@@ -12,7 +12,6 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | --- | --- |
 | `accessibility-testing` | **Historical; not recommended.** Legacy Lighthouse and contrast-checking workflow |
 | `braindump-intake` | Turns multi-item braindumps into reviewed atomic outcomes |
-| `fable-workflow-checklist` | Claude Workflow fan-out safety checklist; pending planned generalization |
 | `gh-issues` | GitHub issue management via `gh` |
 | `gh-pr-review-comments` | **Historical; not recommended.** Codex users should use the official `gh-address-comments` skill |
 | `git-gtr-worktrees` | Worktree creation and cleanup via `git gtr` |
@@ -22,6 +21,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `retro` | Guided end-of-session retrospective, writing to the Obsidian vault |
 | `s3-troubleshooting` | **Historical; not recommended. May contain incorrect or unsafe instructions.** Legacy S3 permissions and presigned-URL guidance |
 | `session-inspect` | Inspects and compares local Codex and Claude Code session artifacts |
+| `workflow-fanout-checklist` | Claude Workflow fan-out safety checklist |
 
 ### `obsidian-personal` privacy warning
 

@@ -2,11 +2,6 @@
   "version": 1,
   "exceptions": [
     {
-      "path": "fable-workflow-checklist/SKILL.md",
-      "rules": ["obs-reference", "private-reference-id"],
-      "reason": "Legacy workflow adapter pending its separately owned backend-neutral extraction."
-    },
-    {
       "path": "obsidian-personal/SKILL.md",
       "rules": ["personal-home", "private-marker"],
       "reason": "Legacy personal adapter pending its separately owned template and private-instance split."

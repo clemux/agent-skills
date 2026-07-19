@@ -17,7 +17,6 @@
 
 accessibility-testing   none
 braindump-intake        claude codex agents
-fable-workflow-checklist claude
 gh-issues               claude
 gh-pr-review-comments   none
 git-gtr-worktrees       claude codex agents
@@ -27,3 +26,4 @@ pytest-profiling        claude codex agents
 retro                   claude codex agents
 s3-troubleshooting      none
 session-inspect         claude codex agents
+workflow-fanout-checklist claude
