@@ -13,7 +13,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `accessibility-testing` | WCAG compliance, contrast ratios, Lighthouse audits |
 | `braindump-intake` | Turns multi-item braindumps into reviewed atomic outcomes |
 | `gh-issues` | GitHub issue management via `gh` |
-| `gh-pr-review-comments` | Reading and replying to PR review comments |
+| `gh-pr-review-comments` | **Historical; not recommended.** Codex users should use the official `gh-address-comments` skill |
 | `git-gtr-worktrees` | Worktree creation and cleanup via `git gtr` |
 | `obsidian-personal` | Supplies personal-vault targeting and machine-specific Obsidian CLI facts |
 | `plan-mode-tdd` | Structures plan-mode output as a TDD-first sequence |
