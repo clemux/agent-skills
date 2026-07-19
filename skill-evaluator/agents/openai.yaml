@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Evaluator"
+  short_description: "Benchmark and improve Codex skills"
+  default_prompt: "Use $skill-evaluator to compare this skill against a baseline and review the results."

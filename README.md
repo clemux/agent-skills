@@ -21,6 +21,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `retro` | Guided end-of-session retrospective with pluggable storage backends |
 | `s3-troubleshooting` | **Historical; not recommended. May contain incorrect or unsafe instructions.** Legacy S3 permissions and presigned-URL guidance |
 | `session-inspect` | Inspects and compares local Codex and Claude Code session artifacts |
+| `skill-evaluator` | Benchmarks and improves Codex skills against controlled baselines |
 | `workflow-fanout-checklist` | Claude Workflow fan-out safety checklist |
 
 ### `obsidian-personal` privacy warning

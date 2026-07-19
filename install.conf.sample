@@ -26,4 +26,5 @@ pytest-profiling        claude codex agents
 retro                   claude codex agents
 s3-troubleshooting      none
 session-inspect         claude codex agents
+skill-evaluator         codex
 workflow-fanout-checklist claude
