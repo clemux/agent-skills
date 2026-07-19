@@ -5,13 +5,14 @@ source of truth**: a skill lives here once, and each harness reaches it through 
 
 ## Layout
 
-Each top-level directory is one skill, containing a `SKILL.md` with `name` and `description`
+Each skill has a top-level directory containing a `SKILL.md` with `name` and `description`
 frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 
 | Skill | What it does |
 | --- | --- |
 | `accessibility-testing` | **Historical; not recommended.** Legacy Lighthouse and contrast-checking workflow |
 | `braindump-intake` | Turns multi-item braindumps into reviewed atomic outcomes |
+| `fable-workflow-checklist` | Claude Workflow fan-out safety checklist; pending planned generalization |
 | `gh-issues` | GitHub issue management via `gh` |
 | `gh-pr-review-comments` | **Historical; not recommended.** Codex users should use the official `gh-address-comments` skill |
 | `git-gtr-worktrees` | Worktree creation and cleanup via `git gtr` |
