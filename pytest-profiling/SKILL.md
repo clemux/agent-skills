@@ -28,6 +28,14 @@ Systematic workflow for diagnosing, fixing, and reporting on slow Python/pytest 
 
 All steps are read-only. No code changes.
 
+**Profile serially when xdist is the default.** If the project's `addopts` includes `-n auto`
+(pytest-xdist), append `-n 0` to every measurement command in this skill: `--durations` and
+pyinstrument numbers are misleading under parallel workers. Report the parallel wall time
+separately as the user-facing number, but attribute costs from serial runs only. Re-profiling
+after a fix can expose overhead the previous bottleneck masked (e.g. per-call framework setup
+hidden inside subprocess spawn cost) — treat the post-fix measurement as a first-class step,
+not a formality.
+
 ### Step 1 — Baseline timing + slowest tests
 
 ```bash

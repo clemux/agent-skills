@@ -36,9 +36,13 @@ Use when you want concise prose instead of a schema.
 ```xml
 <compact_output_contract>
 Keep the final answer compact and structured.
-Do not include long scene-setting or repeated recap.
+Lead with the conclusion. Preserve required facts, decisions, caveats, and next steps.
+Trim introductions, repetition, generic reassurance, and optional background first.
 </compact_output_contract>
 ```
+
+GPT-5.6 is terser by default than earlier generations; an unqualified "be brief" can over-trim.
+Give a priority order (what to keep vs what to cut) rather than a bare brevity instruction.
 
 ## Follow-through and Completion
 
@@ -48,10 +52,14 @@ Use when Codex should act without asking routine questions.
 
 ```xml
 <default_follow_through_policy>
-Default to the most reasonable low-risk interpretation and keep going.
-Only stop to ask questions when a missing detail changes correctness, safety, or an irreversible action.
+For requests to answer, explain, review, diagnose, or plan: inspect and report; do not implement changes unless the request also asks for them.
+For requests to change, build, or fix: make the in-scope change and run non-destructive validation without asking first.
+Require confirmation only for external writes, destructive actions, or a material scope expansion.
 </default_follow_through_policy>
 ```
+
+State this boundary once — repeating "ask first" or "wait for approval" elsewhere in the prompt
+can cause unnecessary approval requests on safe, expected actions.
 
 ### `completeness_contract`
 

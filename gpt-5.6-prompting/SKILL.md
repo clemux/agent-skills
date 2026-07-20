@@ -12,9 +12,10 @@ Prompt Codex like an operator, not a collaborator. Keep prompts compact and bloc
 
 Core rules:
 - Prefer one clear task per Codex run. Split unrelated asks into separate runs.
-- Tell Codex what done looks like. Do not assume it will infer the desired end state.
+- Tell Codex what done looks like. Do not assume it will infer the desired end state. GPT-5.6 infers underlying goals better than prior generations, so you often don't need to prescribe every step — but still state domain context, hard constraints, approval boundaries, and success criteria explicitly, and say when an ambiguity should trigger a question instead of a guess.
 - Add explicit grounding and verification rules for any task where unsupported guesses would hurt quality.
 - Prefer better prompt contracts over raising reasoning or adding long natural-language explanations.
+- Favor lean prompts: state each instruction once, expose only task-relevant tools with concise descriptions, and cut repeated guidance. Remove one instruction/example/tool at a time and re-check quality — OpenAI's coding-agent evals show leaner GPT-5.6 prompts improved scores ~10–15% while cutting tokens 41–66%. Watch total context growth over long sessions, not just prompt size at the start.
 - Use XML tags consistently so the prompt has stable internal structure.
 
 Default prompt recipe:
@@ -43,6 +44,7 @@ Working rules:
 - Prefer explicit prompt contracts over vague nudges.
 - Use stable XML tag names that match the block names from the reference file.
 - Do not raise reasoning or complexity first. Tighten the prompt and verification rules before escalating.
+- GPT-5.6 adds a `max` effort tier above `xhigh` for the hardest quality-first work. Treat effort choice as a deliberate, tested variable per task (compare `xhigh` vs `max`), not something to avoid mentioning — this does not reverse the "fix the prompt first" default.
 - Ask Codex for brief, outcome-based progress updates only when the task is long-running or tool-heavy.
 - Keep claims anchored to observed evidence. If something is a hypothesis, say so.
 

@@ -53,6 +53,14 @@ Keep going until you have enough evidence to identify the root cause confidently
 </default_follow_through_policy>
 ```
 
+## Repeating approval language
+
+Bad: stating "ask before doing X" in `<task>` and again in a safety or scope block.
+
+Better: state the approval boundary once, in `default_follow_through_policy` or `action_safety`.
+GPT-5.6's improved instruction-following can treat repeated caution phrasing as license to
+over-ask even on safe, expected actions.
+
 ## Asking for more reasoning instead of a better contract
 
 Bad:

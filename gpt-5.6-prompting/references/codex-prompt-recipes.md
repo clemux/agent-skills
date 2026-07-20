@@ -80,8 +80,9 @@ Focus on the provided repository context only.
 <structured_output_contract>
 Return:
 1. findings ordered by severity
-2. supporting evidence for each finding
-3. brief next steps
+2. supporting evidence, plus estimated impact and likelihood, for each finding
+3. a specific mitigation per finding
+4. brief next steps
 </structured_output_contract>
 
 <grounding_rules>
