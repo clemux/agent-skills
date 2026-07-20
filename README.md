@@ -15,6 +15,7 @@ frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs.
 | `gh-issues` | GitHub issue management via `gh` |
 | `gh-pr-review-comments` | **Historical; not recommended.** Codex users should use the official `gh-address-comments` skill |
 | `git-gtr-worktrees` | Worktree creation and cleanup via `git gtr` |
+| `gpt-5.6-prompting` | **Not tested.** Guidance for composing Codex and GPT-5.6 prompts delegated from Claude Code |
 | `obsidian-personal` | Supplies personal-vault targeting and machine-specific Obsidian CLI facts |
 | `plan-mode-tdd` | **Historical; not recommended.** Structures plan-mode output as a TDD-first sequence |
 | `pytest-profiling` | Diagnoses and fixes slow Python test suites |
