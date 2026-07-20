@@ -53,6 +53,13 @@ Turn the dump into a numbered ledger:
 
 Use these states consistently: `Pending`, `In progress`, `Confirmed`, `Persisted`, `Blocked`, and
 `Skipped`.
+Intake records outcomes; it does not execute them. Reserve `Blocked` for failed writes and missing
+persistence capability — an item whose underlying work merely lacks inputs (data, access, a
+decision) is still reviewable, so confirm it and note what the work will need.
+Whenever the ledger is shown, label every numbered line with its own current state — a collective
+claim like "all four persisted" hides per-item drift. Keep the shown states consistent with the
+surrounding prose: an item the same reply reviews or acts on is already `In progress`, not
+`Pending`.
 When the user is on mobile or cannot see the plan UI, restate the **complete numbered ledger at every
 transition**, including each state and verified identifier.
 
