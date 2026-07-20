@@ -1,4 +1,4 @@
 interface:
   display_name: "Braindump Intake"
-  short_description: "Turn braindumps into reviewed atomic outcomes"
-  default_prompt: "Use $braindump-intake to turn this braindump into a reviewed sequence of atomic outcomes."
+  short_description: "Review quick or guided braindumps as atomic outcomes"
+  default_prompt: "Use $braindump-intake to organize this braindump into atomic outcomes, using quick one-shot intake if I do not want questions."

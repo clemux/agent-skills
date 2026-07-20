@@ -1,6 +1,6 @@
 ---
 name: braindump-intake
-description: Turn a free-form user braindump into a reviewed sequence of atomic outcomes. Use when the user dumps multiple ideas, requests, follow-ups, or project changes and wants them decomposed, reviewed one at a time, optionally persisted through available tools or companion skills; when they ask for quick versus guided intake; or when a mobile user needs the complete ledger restated during interactive intake.
+description: Turn a free-form user braindump into a reviewed sequence of atomic outcomes. Use whenever the user dumps multiple ideas, requests, follow-ups, or project changes in one message and wants them decomposed, reviewed one at a time, or persisted through available tools or companion skills — including when they say "brain dump", "here's everything on my mind", paste a messy mixed list of tasks and ideas, or ask for quick versus guided intake. Also use when a mobile user needs the complete ledger restated during interactive intake.
 ---
 
 # Braindump Intake
@@ -35,18 +35,24 @@ Ask one question unless the user already chose a mode:
 
 Allow per-item overrides. A default mode is not permission to persist unreviewed items.
 
+When the user cannot or will not answer questions — a one-shot request, "no questions, just process
+this" — use Quick mode. Treat the request as confirmation only for outcomes, writes, and destinations
+it states unambiguously. Flag other ambiguities in the final report instead of persisting guesses.
+
 Turn the dump into a numbered ledger:
 
 - Keep one item per outcome; split independent features, repairs, research leads, and workflow
   improvements.
-- Keep any explicitly requested final meta-item last. Insert later additions before it unless the
-  user directs otherwise.
+- Keep any explicitly requested final meta-item (for example "and lastly, capture improvements to
+  this intake process itself") last. Insert later additions before it unless the user directs
+  otherwise.
 - Preserve completed items and verified identifiers when adding work.
 - Treat repository surveys and other cheap context gathering as preparation, not automatically as
   durable work.
 - Mirror the ledger in the harness plan or checklist when available.
 
-Use these states consistently: `Pending`, `In progress`, `Confirmed`, `Persisted`, and `Blocked`.
+Use these states consistently: `Pending`, `In progress`, `Confirmed`, `Persisted`, `Blocked`, and
+`Skipped`.
 When the user is on mobile or cannot see the plan UI, restate the **complete numbered ledger at every
 transition**, including each state and verified identifier.
 
@@ -62,8 +68,8 @@ Keep exactly one item `In progress` and repeat this loop.
 
 2. **Review.** In Quick mode, propose a short name and one-sentence outcome. In Guided mode, state
    the current understanding and ask one scope-changing decision question at a time. Do not turn
-   optional implementation ideas into requirements. Explicitly confirm the item's mode and essential
-   intent before any write.
+   optional implementation ideas into requirements. Confirm the item's mode and essential intent
+   before any write, applying the one-shot confirmation rule above when applicable.
 
 3. **Route or hand off.** If persistence was not requested, mark the reviewed item `Confirmed`. If
    persistence was requested:
@@ -86,10 +92,11 @@ Keep exactly one item `In progress` and repeat this loop.
 
 ## Close the intake
 
-Finish when every item is `Confirmed`, `Persisted`, `Blocked`, or deliberately skipped. Report the
+Finish when every item is `Confirmed`, `Persisted`, `Blocked`, or `Skipped`. Report the
 final numbered ledger, persisted identifiers and outcomes, normalized handoffs, blockers, repairs,
 and skipped items. Never report a planned filename or identifier as created.
 
-Read [worked-example.md](references/worked-example.md) only when maintaining or forward-testing this
-skill. It is synthetic and demonstrates reference repair, cheap context gathering, one-question
-reviews, backend-neutral persistence, and a preserved final meta-item.
+Read [worked-example.md](references/worked-example.md) when unsure how the interaction should flow,
+or when maintaining or forward-testing this skill. It is synthetic — never reuse its names or
+identifiers — and demonstrates reference repair, cheap context gathering, one-question reviews,
+backend-neutral persistence, and a preserved final meta-item.
