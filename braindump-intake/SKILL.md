@@ -1,6 +1,6 @@
 ---
 name: braindump-intake
-description: Turn a free-form user braindump into a reviewed sequence of atomic outcomes. Use whenever the user dumps multiple ideas, requests, follow-ups, or project changes in one message and wants them decomposed, reviewed one at a time, or persisted through available tools or companion skills — including when they say "brain dump", "here's everything on my mind", paste a messy mixed list of tasks and ideas, or ask for quick versus guided intake. Also use when a mobile user needs the complete ledger restated during interactive intake.
+description: Turn a free-form user braindump into a reviewed sequence of atomic outcomes. Use whenever the user dumps multiple ideas, requests, follow-ups, or project changes in one message and wants them decomposed, reviewed one at a time, or persisted through available tools or companion skills — including when they say "brain dump", "here's everything on my mind", paste a messy mixed list of tasks and ideas, or ask for quick versus guided intake. Also use when a mobile user asks you to restate the full ledger mid-intake.
 ---
 
 # Braindump Intake
@@ -16,7 +16,7 @@ Own the intake conversation, item ordering, confirmation state, and final ledger
 persistence mechanism own destinations, schemas, commands, reference resolution, and identifiers.
 
 - Load a persistence workflow only when a confirmed item is ready to write or an existing durable
-  reference needs validation.
+  reference (for example a ticket or note identifier the user supplies) needs validation.
 - When more than one destination or artifact type is plausible, explain the meaningful choice and
   confirm it with the user.
 - When no persistence mechanism is available, return a normalized handoff instead of inventing a
@@ -49,7 +49,7 @@ Turn the dump into a numbered ledger:
 - Preserve completed items and verified identifiers when adding work.
 - Treat repository surveys and other cheap context gathering as preparation, not automatically as
   durable work.
-- Mirror the ledger in the harness plan or checklist when available.
+- Mirror the ledger in the agent's own plan or todo UI when available.
 
 Use these states consistently: `Pending`, `In progress`, `Confirmed`, `Persisted`, `Blocked`, and
 `Skipped`.
@@ -58,7 +58,7 @@ transition**, including each state and verified identifier.
 
 ## Process one item at a time
 
-Keep exactly one item `In progress` and repeat this loop.
+New items start `Pending`. Keep exactly one item `In progress` and repeat this loop.
 
 1. **Preflight.** Validate supplied durable references through their owning workflow when one is
    available. Surface validation failures instead of guessing the target, and add a distinct repair
@@ -69,7 +69,8 @@ Keep exactly one item `In progress` and repeat this loop.
 2. **Review.** In Quick mode, propose a short name and one-sentence outcome. In Guided mode, state
    the current understanding and ask one scope-changing decision question at a time. Do not turn
    optional implementation ideas into requirements. Confirm the item's mode and essential intent
-   before any write, applying the one-shot confirmation rule above when applicable.
+   before any write, applying the one-shot confirmation rule above when applicable. When the user
+   declines to pursue an item, mark it `Skipped`, note the reason for the final report, and move on.
 
 3. **Route or hand off.** If persistence was not requested, mark the reviewed item `Confirmed`. If
    persistence was requested:
