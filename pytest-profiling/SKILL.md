@@ -83,6 +83,8 @@ This shows the full fixture dependency chain. Look for:
 - Expensive fixtures called repeatedly (DB setup, app creation, crypto)
 - Long teardown sequences
 
+For `unittest.TestCase`-style or xunit `setup_method` classes, `--setup-show` prints only a single opaque `_xunit_setup_method_fixture_*` line — read the `setup_method`/`teardown_method` source directly instead.
+
 ### Step 4 — CPU profiling with pyinstrument
 
 ```bash
@@ -106,6 +108,7 @@ The call tree shows exactly where CPU time is spent. Repeat for 2-3 of the slowe
 - RSA key generation — `rsa.generate_private_key()`
 - Network connections — Redis/Valkey, external services
 - `time.sleep` / polling loops — waits that could be event-driven or mocked
+- `subprocess.run([sys.executable, ...])` — CLI-tool suites that spawn the real CLI per test pay a fixed interpreter+import startup cost (~50–100ms) on every call. The tell in pyinstrument: time sits under `subprocess.run` → `poll.poll` (process wait, not CPU). Confirm with `python -X importtime <cli> --help` and by timing a bare `--help` invocation.
 
 ### Step 5 — Micro-benchmarks (optional)
 
@@ -174,6 +177,10 @@ For each group of slow tests sharing the same setup:
 
 Design targeted fixes based on the profiling data. Apply one fix at a time and measure after each.
 
+"Nothing to fix" is a valid outcome. If the data shows the time is genuine workload, or every real lever is blocked (needs a new dependency the user hasn't approved, or changes what the tests verify), say so explicitly in the report — with the blocked levers measured — rather than forcing a low-value change just to have a commit.
+
+A fix that only needs a pytest plugin can be **measured before it's proposed** without touching dependencies, the same way pyinstrument is run: e.g. `uv run --with pytest-xdist pytest <test_dir> -n auto -q`. Run it twice and confirm pass/fail counts match baseline; then the recommendation ships with a real number instead of a guess.
+
 ### Common fixes
 
 #### Coverage on by default
@@ -222,6 +229,12 @@ Cache a test keypair as a session-scoped fixture instead of generating per-test.
 #### Slow module imports
 These are one-time costs and generally not worth optimizing. Note them in the report but don't act on them unless they dominate (Step 2). When they do, move the import inside the fixture/test that needs it, or behind `TYPE_CHECKING`.
 
+#### Subprocess-per-test CLI suites
+When most wall time is fixed subprocess startup (see the hotspot above), the levers are:
+1. **Parallelize with xdist** — spawn cost is I/O wait, not CPU, so it scales almost linearly with workers. Often the only mechanical fix available.
+2. **Reduce spawns per test** — tests that invoke the CLI 3–7 times sequentially may be able to assert on one invocation's full output.
+3. **Convert to in-process calls** (e.g. calling `cli.main(argv)` directly) — cuts the startup cost entirely, but changes what the test verifies (library behavior instead of real process/launcher behavior: exit codes, stderr routing, shebang handling). That's a test-architecture decision, not a mechanical fix — propose it per-test with user sign-off, and keep a small set of true process-level tests either way.
+
 #### Parallelize with pytest-xdist
 `pytest -n auto` is the biggest lever for suites that are already lean per-test but large in count. Apply it **after** the per-test fixes above — parallelism multiplies whatever per-test waste remains, and it changes the rules:
 
@@ -229,7 +242,7 @@ These are one-time costs and generally not worth optimizing. Note them in the re
 - Tests must not share global state (same DB rows, same files, same ports) — use worker-scoped resources (`worker_id` fixture) if they do
 - `--durations` and pyinstrument output become misleading under xdist — always profile without it
 
-Propose it as a dependency addition; measure with the worker count CI would actually use.
+Propose it as a dependency addition; measure it first with the ephemeral `uv run --with pytest-xdist` run described at the top of this phase, using the worker count CI would actually use.
 
 ### Measurement after each fix
 
@@ -264,6 +277,7 @@ Write a report to the location chosen by the user. The report must include all o
 
 **Date:** YYYY-MM-DD
 **Result:** <before>s → <after>s (<speedup>x faster)
+<!-- Zero-fix outcome: "44.1s → 44.1s (no changes applied — see Recommendations for a measured Nx lever)" -->
 
 ## Baseline
 
@@ -314,6 +328,11 @@ Write a report to the location chosen by the user. The report must include all o
 | Test | Time | Reason |
 |---|---|---|
 | ... | ... | ... |
+
+## Recommendations (not applied)
+
+<!-- Levers that were measured but blocked: new dependencies awaiting approval,
+     test-architecture changes needing sign-off. Include the measured number. -->
 ```
 
 Commit the report as a separate `docs:` commit after all optimization commits.
