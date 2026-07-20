@@ -15,6 +15,11 @@ Applies to any Claude Code ultracode / `Workflow` script authored from an expens
 - **Independent verification.** A separate verifier agent — explicitly pinned to a model that is
   sufficiently capable and cheaper than the authoring model — has checked the script against this
   file, and the main agent is reviewing that verdict rather than substituting its own unassisted read.
+- **Parent-facing return.** The script's top-level `return` carries only what the parent will act
+  on: counts, the final synthesis, artifact paths or IDs. Bulk intermediate results (per-item
+  verdicts, worker outputs) stay inside the workflow — downstream agents consume them there, and
+  the journal preserves them for diagnosis. Returning them wholesale requires a comment on the
+  return statement saying why the parent needs the full set.
 
 ## Advisory — flag with a reason, may still pass
 
@@ -38,3 +43,9 @@ A previous workflow described Sonnet-style reader work but omitted `model` on it
 calls, so fifteen agents inherited the far more expensive main-session model. The approval dialog
 did not surface the mismatch because `meta.phases` omitted model fields too — which is why the
 review surface is its own mandatory item.
+
+A later workflow passed every mandatory item but returned its full 212-item verdict array to the
+parent alongside the synthesis; the verifier flagged it as advisory, the author acknowledged and
+ran it anyway, and the parent paid for a 40k-character result it never used. Return-size problems
+cost one word to fix at authoring time and real context afterward — which is why the parent-facing
+return is now a mandatory item rather than an advisory flag.
