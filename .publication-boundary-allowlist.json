@@ -5,6 +5,16 @@
       "path": "obsidian-personal/SKILL.md",
       "rules": ["personal-home", "private-marker"],
       "reason": "Legacy personal adapter pending its separately owned template and private-instance split."
+    },
+    {
+      "path": "docs/obsidian-personal.md",
+      "rules": ["private-marker"],
+      "reason": "Public project URL explicitly supplied and approved by the author for this documentation page."
+    },
+    {
+      "path": "docs/retro.md",
+      "rules": ["private-marker"],
+      "reason": "Public backend URL explicitly supplied and approved by the author for this documentation page."
     }
   ]
 }

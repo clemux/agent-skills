@@ -16,28 +16,26 @@ Each skill has a top-level directory containing a `SKILL.md` with `name` and `de
 frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs. Each skill also has a
 documentation page under [`docs/`](docs/skills.md) — the skill names below link to them.
 
-| Skill | What it does | Default roots | Risk |
-| --- | --- | --- | --- |
-| [`accessibility-testing`](docs/accessibility-testing.md) | **Historical; not recommended.** Legacy Lighthouse and contrast-checking workflow | none | Local writes |
-| [`braindump-intake`](docs/braindump-intake.md) | Turns multi-item braindumps into reviewed atomic outcomes | claude codex agents | External writes |
-| [`gh-issues`](docs/gh-issues.md) | GitHub issue management via `gh` | claude | External writes |
-| [`gh-pr-review-comments`](docs/gh-pr-review-comments.md) | **Historical; not recommended.** Codex users should use the official `gh-address-comments` skill | none | External writes |
-| [`git-gtr-worktrees`](docs/git-gtr-worktrees.md) | Worktree creation, inspection, tool launching, and cleanup via `git gtr` | claude codex agents | Local writes |
-| [`gpt-5.6-prompting`](docs/gpt-5.6-prompting.md) | **Not tested.** Guidance for composing Codex and GPT-5.6 prompts delegated from Claude Code | claude | Read-only |
-| [`obsidian-personal`](docs/obsidian-personal.md) | Supplies personal-vault targeting and machine-specific Obsidian CLI facts (see privacy warning below) | claude codex agents | Local writes |
-| [`plan-mode-tdd`](docs/plan-mode-tdd.md) | **Historical; not recommended.** Structures plan-mode output as a TDD-first sequence | none | Read-only |
-| [`pytest-profiling`](docs/pytest-profiling.md) | Diagnoses and fixes slow Python test suites | claude codex agents | Local writes |
-| [`retro`](docs/retro.md) | Guided end-of-session retrospective with pluggable storage backends | claude codex agents | External writes |
-| [`s3-troubleshooting`](docs/s3-troubleshooting.md) | **Historical; not recommended. May contain incorrect or unsafe instructions.** Legacy S3 permissions and presigned-URL guidance | none | External writes |
-| [`session-inspect`](docs/session-inspect.md) | Inspects and compares local Codex and Claude Code session artifacts | claude codex agents | Read-only |
-| [`skill-evaluator`](docs/skill-evaluator.md) | Benchmarks and improves Codex skills against controlled baselines | codex | Local writes |
-| [`workflow-fanout-checklist`](docs/workflow-fanout-checklist.md) | Claude Workflow fan-out safety checklist | claude | Local writes |
+| Skill | What it does | Default roots |
+| --- | --- | --- |
+| [`accessibility-testing`](docs/accessibility-testing.md) | Historical accessibility checks for a Quasar project | none |
+| [`braindump-intake`](docs/braindump-intake.md) | Turns multi-item braindumps into reviewed atomic outcomes | claude codex agents |
+| [`gh-issues`](docs/gh-issues.md) | Helps agents retrieve GitHub issues with `gh` | claude |
+| [`gh-pr-review-comments`](docs/gh-pr-review-comments.md) | Historical helpers for inline pull-request review comments | none |
+| [`git-gtr-worktrees`](docs/git-gtr-worktrees.md) | Worktree creation, inspection, tool launching, and cleanup via `git gtr` | claude codex agents |
+| [`gpt-5.6-prompting`](docs/gpt-5.6-prompting.md) | Experimental GPT-5.6 prompting guidance for delegation from Claude Code | claude |
+| [`obsidian-personal`](docs/obsidian-personal.md) | Temporary, machine-specific Obsidian adapter | claude codex agents |
+| [`plan-mode-tdd`](docs/plan-mode-tdd.md) | Structures plan-mode output as a TDD sequence | none |
+| [`pytest-profiling`](docs/pytest-profiling.md) | Diagnoses and fixes slow Python test suites | claude codex agents |
+| [`retro`](docs/retro.md) | Guided end-of-session retrospective with pluggable storage backends | claude codex agents |
+| [`s3-troubleshooting`](docs/s3-troubleshooting.md) | S3 troubleshooting notes the author no longer uses | none |
+| [`session-inspect`](docs/session-inspect.md) | Inspects and compares local Codex and Claude Code session artifacts | claude codex agents |
+| [`skill-evaluator`](docs/skill-evaluator.md) | Work-in-progress extraction of skill evaluation tooling for Codex | codex |
+| [`workflow-fanout-checklist`](docs/workflow-fanout-checklist.md) | Reviews Claude Workflow fan-out scripts before they run | claude |
 
 **Default roots** is the portable default harness mapping from
 [`install.conf.sample`](install.conf.sample) (`none` = tracked but installed nowhere); each machine
-can diverge in its local `install.conf`. **Risk** is the strongest side effect the skill can have
-when followed — see the [skill catalog](docs/skills.md) for the full compatibility matrix, the
-column legend, and per-skill prerequisites.
+can diverge in its local `install.conf`.
 
 ### `obsidian-personal` privacy warning
 
@@ -49,14 +47,11 @@ means replacing that entire local configuration, not just two values — see
 
 ## Documentation
 
-- [docs/skills.md](docs/skills.md) — complete skill catalog and compatibility matrix.
+- [docs/skills.md](docs/skills.md) — skill catalog and default installation roots.
 - [docs/installing.md](docs/installing.md) — manifest semantics and `install.sh` mechanics.
-- [docs/contributing.md](docs/contributing.md) — docs conventions and the definition of done for
-  adding, renaming, or retiring a skill.
 - [docs/verification.md](docs/verification.md) — every automated check, what it covers, and the
   coverage gaps.
-- `docs/<skill>.md` — one page per skill: status, triggers, prerequisites, read/write boundaries,
-  limitations, and verification state.
+- `docs/<skill>.md` — one concise page per skill.
 
 The repository rules — the working tree is the deployed state, never edit a skill through a harness
 path, the publication boundary — live in [AGENTS.md](AGENTS.md).
@@ -93,8 +88,7 @@ See [docs/installing.md](docs/installing.md) for the exact manifest and removal 
 2. Add its portable default mapping to `install.conf.sample` and add it to your local
    `install.conf`, then run `./install.sh` to link it into the selected roots.
 3. Document it: a row in the table above, a `docs/<skill-name>.md` page, and a row in
-   [docs/skills.md](docs/skills.md). See [docs/contributing.md](docs/contributing.md) for the full
-   definition of done.
+   [docs/skills.md](docs/skills.md).
 4. Commit the change.
 
 Shell scripts are linted by `shellcheck` via pre-commit; see

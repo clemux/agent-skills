@@ -28,8 +28,7 @@ interactive agent.
 
 ## Triggers
 
-Per the [SKILL.md](../session-inspect/SKILL.md) description frontmatter, the skill is meant to fire
-when an agent needs any of the following from a *past* local coding-agent session:
+Use it to inspect a past local coding-agent session for:
 
 - commands run, or compaction counts;
 - token usage in any breakdown — direct, child, inclusive, total, or per-model;
@@ -185,8 +184,7 @@ exit 0.
 - [`agents/openai.yaml`](../session-inspect/agents/openai.yaml) — Codex interface metadata
   (`display_name`, `short_description`, `default_prompt`) so the skill is user-invocable in that
   harness.
-- `tests/test_session_inspect.py` — the automated test suite (see
-  [Verification status](#verification-status)).
+- `tests/test_session_inspect.py` — the automated test suite.
 
 ## Limitations
 
@@ -228,8 +226,6 @@ exit 0.
 
 ## Compatibility and version notes
 
-Version-sensitive facts, current **as of 2026-07-21**:
-
 - **Artifact formats.** The Codex parser keys on `session_meta`, `turn_context`, `response_item`,
   `event_msg` (`token_count`, `sub_agent_activity`), and top-level `compacted` records; the Claude
   parser keys on `assistant`/`user`/`system` records, `message.usage`, and
@@ -241,8 +237,7 @@ Version-sensitive facts, current **as of 2026-07-21**:
   `~/.codex` (config home). Override with `--codex-root` / `--claude-root` / `--codex-home`, or the
   environment variables `SESSION_INSPECT_CODEX_ROOT`, `SESSION_INSPECT_CLAUDE_ROOT`, and
   `CODEX_HOME`.
-- **Default caps.** `--max-items` defaults to 10 and `--command-chars` to 200; confirm them against
-  `build_parser` if the CLI changes.
+- **Default caps.** `--max-items` defaults to 10 and `--command-chars` to 200.
 - **Python floor.** The config-fallback path needs `tomllib` (Python 3.11+); on older interpreters
   config-derived model/effort degrades to unavailable.
 
@@ -307,14 +302,7 @@ direct tokens and 24.38M inclusive tokens, while `ccusage` reported 23,499,677 t
 matching parent session. Treat figures from different inspectors as tool-specific measurements;
 their snapshot and child-session aggregation rules are not interchangeable.
 
-## Verification status
+## Tests
 
-- **Automated.** The bundled `tests/test_session_inspect.py` suite contains 22 tests using
-  **synthetic fixtures** written to temporary directories. It exercises parser, resolver, renderer,
-  diff, and delegation logic against controlled inputs, not real artifact variety.
-- **Manually verified.** Command and option semantics, exit codes, and defaults were read from
-  `scripts/session_inspect.py`; format and safety claims come from `references/formats.md` and the
-  SKILL.md.
-- **Untested here.** The synthetic suite does not cover real, current Codex/Claude artifacts.
-  Results depend on those formats matching parser expectations; the comparison above shows that
-  live token figures are tool-specific.
+`tests/test_session_inspect.py` uses synthetic fixtures to test parsing, target resolution,
+rendering, diffs, and delegation metadata.

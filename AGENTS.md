@@ -64,6 +64,42 @@ underlying match disappears. Machine-specific private markers belong in the igno
 point and replace its fictional values locally. Public checkouts still enforce the universal rules
 when that file is absent.
 
+## Documentation
+
+Skill pages are public documentation, not records of an agent reviewing the repository.
+
+- Write concise facts. Do not invent retirement reasons, usage history, quality judgments,
+  compatibility claims, or replacements.
+- Include an author's reason or assessment only when the author supplied it explicitly.
+- Do not publish review-process language such as "checked against," "verified for this page," or
+  descriptions of what an agent inspected while drafting the documentation.
+- Keep useful factual examples and test evidence. Concision does not require removing concrete
+  evidence that helps readers understand the skill.
+- Do not force every page into the same template. Omit sections that add no useful information.
+- Prefer an explicit `TODO` or placeholder to a guess.
+- Preserve author-supplied wording verbatim when requested.
+- When deriving an example from a past session, inspect the source evidence and distinguish work
+  caused by the retrospective from work that happened before it.
+- When reviewing multiple skill pages with the user, treat each page as a separate decision gate.
+  Do not mark it complete or advance to the next page until the user explicitly approves it. A
+  requested revision reopens the gate.
+
+## Keeping skill representations synchronized
+
+A skill change is complete only when its directory, manifest entries, README row, documentation
+page, and `docs/skills.md` row agree.
+
+- Adding: create the skill, update both manifests, run `./install.sh`, and add the README and docs
+  entries.
+- Renaming: update the directory, frontmatter, manifests, links, and docs; run `./install.sh` and
+  remove stale old-name symlinks.
+- Retiring: map the skill to `none`, run `./install.sh`, and update its README and docs entries. Do
+  not invent a reason for the retirement.
+- Deleting: remove the skill, both manifest entries, README row, documentation page, and catalog
+  row, then run `./install.sh`.
+
+Run `pre-commit run --all-files` before committing.
+
 ## Working here
 
 - A skill is a directory with `SKILL.md` (frontmatter: `name`, `description`) plus optional
@@ -72,10 +108,6 @@ when that file is absent.
   *and* the situations that should invoke it. A skill that never triggers is dead code.
 - New skills need a portable default entry in `install.conf.sample`, a matching entry in the
   machine-local `install.conf`, and a run of `./install.sh` before any harness can see them.
-- A skill change is finished only when every representation of the skill agrees: the manifest
-  entry, the `README.md` table row, the skill's `docs/<skill>.md` page, and the `docs/skills.md`
-  catalog row. `docs/contributing.md` carries the full definition of done for adding, renaming,
-  or retiring a skill.
 - A bundled script must be runnable from any harness. Document the plain command it wraps, and never
   depend on a harness-specific variable to find it — a path that only resolves in one harness is a
   skill that silently does nothing in the others.
