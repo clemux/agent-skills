@@ -72,6 +72,10 @@ when that file is absent.
   *and* the situations that should invoke it. A skill that never triggers is dead code.
 - New skills need a portable default entry in `install.conf.sample`, a matching entry in the
   machine-local `install.conf`, and a run of `./install.sh` before any harness can see them.
+- A skill change is finished only when every representation of the skill agrees: the manifest
+  entry, the `README.md` table row, the skill's `docs/<skill>.md` page, and the `docs/skills.md`
+  catalog row. `docs/contributing.md` carries the full definition of done for adding, renaming,
+  or retiring a skill.
 - A bundled script must be runnable from any harness. Document the plain command it wraps, and never
   depend on a harness-specific variable to find it — a path that only resolves in one harness is a
   skill that silently does nothing in the others.
