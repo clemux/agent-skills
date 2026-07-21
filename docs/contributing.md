@@ -1,11 +1,7 @@
 # Contributing
 
-This page covers the practical mechanics of contributing to this repository: the `docs/`
-conventions, the definition of done for adding, renaming, or retiring a skill, how to set up
-pre-commit, and where the publication-boundary files fit. It does **not** restate the repository's
-rules. Those live in [AGENTS.md](../AGENTS.md): the working tree is the deployed state, never edit a
-skill through a harness path, the publication boundary, and skill anatomy. Read AGENTS.md first;
-this page fills in only the steps AGENTS.md leaves out.
+This page covers documentation, adding or retiring skills, pre-commit setup, and the
+publication-boundary files. Repository rules live in [AGENTS.md](../AGENTS.md); read it first.
 
 ## Before you start
 
@@ -24,14 +20,12 @@ Each skill is documented in three places, in addition to its own `SKILL.md`:
 1. **A row in the [`README.md`](../README.md) skill table** — the skill name (linked to its
    `docs/<skill-name>.md` page), a one-line description, the default roots, and the risk class.
    Historical or unrecommended skills carry a bold status prefix in the description cell (for
-   example `**Historical; not recommended.**` or `**Not tested.**`), so the README table doubles
-   as the at-a-glance status list.
+   example `**Historical; not recommended.**` or `**Not tested.**`).
 2. **A page at `docs/<skill-name>.md`** — one Markdown page per skill, named exactly for the skill
    directory. This page carries the detail that does not fit in a README row: status, portability
    and privacy notes, verification state, and an illustrative example where one helps.
-3. **A row in the [`skills.md`](skills.md) catalog** — the docs-side index that links each skill's
-   name to its `docs/<skill-name>.md` page. `skills.md` is the entry point readers use to reach the
-   per-skill pages; the README table is the top-level summary.
+3. **A row in the [`skills.md`](skills.md) catalog** — the docs index linking the skill name to its
+   page.
 
 ### Linking conventions
 
@@ -41,9 +35,7 @@ Each skill is documented in three places, in addition to its own `SKILL.md`:
   [`../install.conf.sample`](../install.conf.sample), [`../README.md`](../README.md), or a skill's
   own [`../<skill-name>/SKILL.md`](../accessibility-testing/SKILL.md)).
 - Do not copy a skill's checklist, schema, or reference material into its docs page. Link to the
-  canonical file in the skill package instead, so there is one source to keep current. This mirrors
-  the publication-boundary and drift concerns in [AGENTS.md](../AGENTS.md): duplicated content
-  drifts silently.
+  file in the skill package instead.
 
 ### What a historical page looks like
 
@@ -68,9 +60,7 @@ generally includes:
 
 ## Definition of done
 
-A skill change is not finished until every representation of the skill agrees. Because a skill is
-described in the manifest, the README, and the docs, a partial change leaves the sources
-disagreeing — the same drift failure AGENTS.md exists to prevent, in documentation form.
+A skill change is not finished until the manifest, README, and docs agree.
 
 ### Adding a skill
 

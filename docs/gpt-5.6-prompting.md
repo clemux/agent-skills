@@ -1,18 +1,15 @@
 # gpt-5.6-prompting
 
 Guidance for composing Codex and GPT-5.6 prompts for coding, review, diagnosis, and research tasks
-delegated from Claude Code. The skill is a prompt-authoring reference: it tells the calling agent
-how to structure a prompt it is about to send to Codex or another GPT-5.6-based workflow (for
-example `gpt-5.6-sol`). It does not invoke Codex, run any command, or execute a prompt itself —
-composing the prompt text is the entire deliverable, and sending it is left to whatever the caller
-already uses to reach Codex (a built-in `review`/`adversarial-review` command, a `task` invocation,
-or a plugin agent such as `codex:codex-rescue`).
+delegated from Claude Code. It tells the calling agent how to structure a prompt for Codex or another
+GPT-5.6-based workflow (for example `gpt-5.6-sol`). It produces prompt text only; the caller sends
+it through an existing delivery path such as `review`, `adversarial-review`, `task`, or
+`codex:codex-rescue`.
 
 ## Status
 
-Active, but marked **Not tested** in [`README.md`](../README.md). On this page, "not tested" means
-the guidance was written from documentation and prompting experience and has not been validated
-end-to-end against a live Codex/GPT-5.6 run as part of this repository's own verification — see
+Active, but marked **Not tested** in [`README.md`](../README.md): the repository's verification has
+not validated the guidance end-to-end against a live Codex/GPT-5.6 run. See
 [Verification status](#verification-status).
 
 Default harness mapping, from [`install.conf.sample`](../install.conf.sample):
@@ -21,8 +18,7 @@ Default harness mapping, from [`install.conf.sample`](../install.conf.sample):
 gpt-5.6-prompting       claude
 ```
 
-The skill ships only to Claude Code by default; it is not mapped to a Codex or neutral
-`~/.agents/skills` root in the sample manifest.
+The sample manifest maps the skill only to Claude Code, not Codex or `~/.agents/skills`.
 
 The frontmatter sets `user-invocable: false`
 ([`gpt-5.6-prompting/SKILL.md`](../gpt-5.6-prompting/SKILL.md)), so it is meant to be
@@ -31,15 +27,14 @@ not exposed as a slash command or direct user invocation.
 
 ## Triggers
 
-Per the `description` frontmatter, the skill is meant to fire when delegating to Codex or another
+The `description` frontmatter triggers the skill when delegating to Codex or another
 GPT-5.6-based workflow for coding, review, diagnosis, or research tasks, and specifically in
 preference to the Codex plugin's bundled `gpt-5-4-prompting` skill when the target model is
-GPT-5.6 (e.g. `gpt-5.6-sol`). There is no separate "when to use" section in the body; the
-frontmatter description is the only trigger definition.
+GPT-5.6 (e.g. `gpt-5.6-sol`). The frontmatter is the only trigger definition.
 
 ## Prerequisites
 
-- A way to actually reach Codex or a GPT-5.6-based workflow — this skill supplies prompt text
+- A way to reach Codex or a GPT-5.6-based workflow — this skill supplies prompt text
   only, not the delivery mechanism. Typical delivery mechanisms it assumes exist are a `review` /
   `adversarial-review` command, a `task` (optionally `task --resume-last`) invocation, or the
   Codex plugin's `codex:rescue` agent (see [Limitations](#limitations)).
@@ -47,14 +42,11 @@ frontmatter description is the only trigger definition.
 
 ## Read/write and safety boundaries
 
-The skill has no scripts, so it performs no reads or writes on its own — it only supplies text for
-the calling agent to include in a prompt. All read/write and approval boundaries described in the
-skill (e.g. `default_follow_through_policy`, `action_safety` in
+The skill has no scripts and performs no reads or writes. Its read/write and approval boundaries
+(e.g. `default_follow_through_policy`, `action_safety` in
 [`references/prompt-blocks.md`](../gpt-5.6-prompting/references/prompt-blocks.md)) are
-recommendations for what the *downstream* Codex prompt should say, not actions this skill takes.
-Any external write, destructive action, or scope expansion the skill recommends gating still needs
-explicit approval at the point Codex (or whatever executes the prompt) actually runs — this skill
-cannot enforce that boundary itself.
+instructions for the downstream Codex prompt. External writes, destructive actions, and scope
+expansions still need approval when the downstream tool executes them.
 
 ## Typical workflow
 
@@ -77,8 +69,7 @@ cannot enforce that boundary itself.
 
 ## Bundled resources
 
-The skill has no `scripts/` and no `assets/`; it is documentation-only, consistent with its role
-as a prompt-composition reference rather than an executor.
+The documentation-only package has no `scripts/` or `assets/`.
 
 There is also no `agents/` directory in the skill package itself. One reference file names an
 external agent (`codex:codex-rescue`) that belongs to a separate Codex plugin — see
@@ -144,10 +135,9 @@ documentation before relying on them:
 - **Automated checks**: none specific to this skill were found; it ships no scripts, so there is
   nothing here for a test runner to execute.
 - **Manually verified**: not established by this page. The `README.md` "Not tested" annotation
-  (see [Status](#status)) is the only existing signal, and this page's review of the source files
-  confirms the guidance is internally consistent (block names in `SKILL.md` match the tags defined
-  in `references/prompt-blocks.md` and used in `references/codex-prompt-recipes.md`) but does not
-  establish that following it produces better Codex/GPT-5.6 output.
+  (see [Status](#status)) is the only existing signal. This page cross-checked that block names in
+  `SKILL.md` match tags defined in `references/prompt-blocks.md` and used in
+  `references/codex-prompt-recipes.md`; it did not test whether the guidance improves output.
 - **Untested**: the practical effect of the guidance on real Codex/GPT-5.6 runs, including the
   specific numeric claims called out in [Compatibility and version notes](#compatibility-and-version-notes).
 
@@ -181,8 +171,7 @@ Do not stop after identifying the issue without applying the fix.
 </completeness_contract>
 
 <verification_loop>
-Before finalizing, verify that the fix matches the task requirements and that the changed code is
-coherent.
+Before finalizing, verify that the fix matches the task requirements and is consistent with the surrounding code.
 </verification_loop>
 
 <action_safety>

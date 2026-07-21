@@ -1,8 +1,8 @@
 # gh-issues
 
-GitHub issue management using the `gh` CLI: listing and viewing issues, and creating, editing,
-closing, or reopening them. The skill is a single `SKILL.md` containing a fixed set of `gh issue`
-command patterns; it does not wrap `gh` in any script and has no reference files or agents.
+GitHub issue management with the `gh` CLI: listing, viewing, creating, editing, closing, and
+reopening issues. The skill is one `SKILL.md` with command patterns; it has no scripts, references,
+or agents.
 
 ## Status
 
@@ -14,13 +14,11 @@ Default harness mapping, from [`install.conf.sample`](../install.conf.sample):
 gh-issues               claude
 ```
 
-Claude-only by default; not installed for Codex or the neutral `~/.agents/skills` root unless a
-machine's local `install.conf` overrides this.
+Claude-only by default. A machine's local `install.conf` can override that mapping.
 
-The skill is model-triggered: its frontmatter `description` is the sole trigger mechanism (per
-[`AGENTS.md`](../AGENTS.md)), and it fires on user phrasing like "show open issues", "view issue
-456", "create an issue", "file a bug", "close issue", or "add label to issue" rather than on an
-explicit user invocation command.
+The frontmatter `description` is the sole trigger mechanism (per [`AGENTS.md`](../AGENTS.md)). It
+matches phrases such as "show open issues", "view issue 456", "create an issue", "file a bug",
+"close issue", and "add label to issue".
 
 ## Triggers
 
@@ -44,21 +42,17 @@ Per the `description` frontmatter in
 
 ## Read/write and safety boundaries
 
-- **Read-only operations** — `gh issue list` and `gh issue view` — query GitHub and do not mutate
-  anything. These are safe to run without additional confirmation beyond the normal tool-use
-  approval the harness already requires for shell commands.
+- **Read-only operations** — `gh issue list` and `gh issue view` — query GitHub without mutation.
 - **Write operations** — `gh issue create`, `gh issue edit`, `gh issue close`, `gh issue reopen` —
   are external, human-facing mutations against a real GitHub repository: they create issues,
   change titles/labels/assignees, or change issue state, all visible to anyone with access to that
   repository. The skill file itself contains no built-in confirmation step or target check; the
   agent invoking these commands is responsible for confirming both the exact repository the
-  command will hit and the payload (title, body, labels, assignees, close reason) before running
-  a write, since `gh issue` commands operate against whichever repository is inferred from the
-  current directory or an explicit `-R owner/repo` flag.
-- **Repository-target selection matters.** None of the documented commands in
-  [`SKILL.md`](../gh-issues/SKILL.md) show or mention the `-R`/`--repo` flag; every example relies
-  on `gh`'s ambient repository resolution (current git remote). Running these commands from the
-  wrong working directory silently targets the wrong repository.
+  command will hit and the payload (title, body, labels, assignees, close reason) before a write.
+  `gh issue` uses the repository inferred from the current directory or `-R owner/repo`.
+- **Repository-target selection matters.** The documented commands do not use `-R`/`--repo`; every
+  example relies on `gh`'s ambient repository resolution (current git remote). A wrong working
+  directory can silently target the wrong repository.
 - **Labels, assignees, and close reasons are repository-specific.** Labels (e.g. `bug`,
   `enhancement`, `needs-review`) and close reasons (e.g. `"not planned"`) must already exist or be
   valid for the target repository; the skill does not enumerate or validate them.
@@ -87,8 +81,7 @@ Per the `description` frontmatter in
   bulk operations, issue templates, milestones, or projects.
 - No explicit repository-targeting example (`-R owner/repo`) is included, so correctness depends
   on the caller's working directory matching the intended repository.
-- No verification step for label/assignee/close-reason validity before submission — invalid values
-  surface only as a `gh` error at execution time.
+- Invalid labels, assignees, and close reasons surface only as a `gh` error at execution time.
 - The skill has no automated tests of its own; it is a static instruction file.
 
 ## Compatibility and version notes
@@ -104,9 +97,8 @@ Per the `description` frontmatter in
 
 - No automated checks (tests, CI) exercise this skill within the repository; it is not listed with
   any test harness in the sources read.
-- Command syntax was manually cross-checked against the skill's own `SKILL.md` content only; the
-  underlying `gh issue` commands themselves were not executed against a live repository as part of
-  producing this page.
+- Command syntax was cross-checked only against `SKILL.md`; no commands were run against a live
+  repository for this page.
 
 ## Example
 

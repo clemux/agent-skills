@@ -1,9 +1,8 @@
 # retro
 
-Runs a guided end-of-session retrospective: it reads the session transcript for evidence, discusses
-a triaged list of observations with the user one item at a time, converts confirmed follow-ups into
-owned tasks or captures as the discussion happens, and writes a durable retrospective note through a
-pluggable storage backend.
+Runs a guided end-of-session retrospective: reads the transcript for evidence, discusses triaged
+observations one at a time, converts confirmed follow-ups into tasks or captures, and writes a
+durable note through a pluggable backend.
 
 ## Status
 
@@ -13,12 +12,10 @@ Active. Default harness mapping in [`install.conf.sample`](../install.conf.sampl
 retro                   claude codex agents
 ```
 
-That targets all three roots (Claude Code, Codex, and the neutral `~/.agents/skills` root).
+Targets Claude Code, Codex, and the neutral `~/.agents/skills` root.
 
-The skill is both model-triggered and user-invoked. It has an explicit invocation per harness
-(`/retro` in Claude Code, `$retro` in Codex — see [`retro/SKILL.md`](../retro/SKILL.md), "Harness
-adapters"), and its description frontmatter also lists natural-language phrasings it should
-recognize without an explicit command.
+Invoke it as `/retro` in Claude Code or `$retro` in Codex; its description frontmatter also covers
+natural-language requests.
 
 ## Triggers
 
@@ -43,9 +40,8 @@ Per the `description` frontmatter in [`retro/SKILL.md`](../retro/SKILL.md), the 
   `TaskGet`/`TaskList` (or the older `TodoWrite`, whichever the running build offers), or Codex's
   `update_plan`.
 - Optionally, a **retro backend adapter** skill — a skill whose description names itself as a
-  backend/adapter for `retro` (for example an Obsidian- or issue-tracker-backed adapter). Without
-  one, the skill uses its own plain-Markdown fallback (see below); no adapter is required to run a
-  retro.
+  backend/adapter for `retro` (for example, an Obsidian- or issue-tracker-backed adapter). Without
+  one, it uses the plain-Markdown fallback.
 - Optionally, a session-analysis skill (e.g. `session-inspect` or `session-report`) — if installed,
   the skill prefers it over hand-deriving token/tool-call statistics from the transcript.
 
@@ -67,9 +63,8 @@ mappings.
 
 - **No invented evidence.** If the transcript, token counts, or session ID cannot be read/resolved,
   the skill is required to say so plainly rather than estimate or fabricate numbers.
-- **Confirmation before creating durable follow-ups.** A follow-up is only converted into a task or
-  capture "the moment the user confirms an item implies work" during the one-item-at-a-time
-  discussion — it is not created speculatively from the evidence-gathering pass alone.
+- **Confirmation before creating durable follow-ups.** Create a task or capture only when the user
+  confirms that an item implies work; do not create one from evidence gathering alone.
 - **Confirmation before writing an untraceable note.** If the session identifier is unavailable, the
   skill must say so and get the user's explicit OK before writing the note without it.
 - **Destination confirmation when ambiguous.** In the fallback path, if the retro note's destination
@@ -77,35 +72,29 @@ mappings.
 - **No structured/multiple-choice prompting for retro items.** The skill explicitly avoids
   `AskUserQuestion`-style tools for discussing items, because pre-baked options narrow the user's
   answer to what the agent already anticipated.
-- **Execution of substantive follow-ups happens in a fresh session**, not inline in the retro (see
-  Typical workflow below) — the retro session only records the follow-up and hands off a launch
-  command.
+- **Substantive follow-ups run in a fresh session.** The retro records the follow-up and provides a
+  launch command.
 
 ## Typical workflow
 
-The full sequence is in [`retro/SKILL.md`](../retro/SKILL.md), "Workflow" (steps 1-5). Summary:
+See [`retro/SKILL.md`](../retro/SKILL.md), "Workflow" (steps 1–5).
 
 1. **Gather evidence.** Read the transcript (and subagent transcripts) for outcome, what worked,
    friction, token waste, decisions (made and deferred), reusable workflows, do-not-forget items,
-   and user corrections. Triage down to the handful of items worth the user's attention before
-   speaking.
+   and user corrections. Triage to items worth the user's attention.
 2. **Build the agenda as a visible checklist.** Every triaged item goes into the harness's checklist
-   tool as one pending entry — session-local planning state, not a durable artifact — so a long
-   discussion cannot silently drop later items.
+   tool as one pending entry. This is session-local planning state, not a durable artifact.
 3. **Discuss, one item at a time.** State the observation, cite evidence (a tool call, a transcript
-   moment, a token count), say why it matters, then stop and let the user respond. Follow tangents;
-   drop dismissed items without arguing; add items the user raises that were missed; update the
-   checklist after each one.
+   moment, a token count), say why it matters, then let the user respond. Follow tangents, drop
+   dismissed items, add missed items the user raises, and update the checklist after each one.
 4. **Convert follow-ups into owned work, inline.** As soon as the user confirms an item implies
-   work, it gets a home immediately (task, capture, or a `## Follow-ups` entry in the fallback) —
-   not batched to the end. A correction to how the agent should work is flagged as belonging in
-   agent memory or a skill, not just a retro bullet.
+   work, give it a home immediately (task, capture, or a `## Follow-ups` entry in the fallback).
+   Corrections to agent behavior belong in agent memory or a skill, not only the retro.
 
    Recording (creating the task, filing the capture, adding the link) happens inline, in the retro
-   session. **Executing** a follow-up that has grown into its own piece of work does not: the skill
-   names it, offers a fork ("that's a fresh-session job — I've captured it as `<task-id>`"), and
-   defers doing it. At the end of the retro it offers a launch command pointed at the repo the work
-   actually lives in:
+   session. Do not execute a substantive follow-up inline: name it, offer a fork ("that's a
+   fresh-session job — I've captured it as `<task-id>`"), and defer it. End with a launch command
+   for the repository where the work lives:
 
    ```bash
    # Claude Code
@@ -115,29 +104,21 @@ The full sequence is in [`retro/SKILL.md`](../retro/SKILL.md), "Workflow" (steps
    cd <repo> && codex "Work on <task-id>. Read the task, then implement it."
    ```
 
-   The stated exception is a fix too small to have its own shape (a one-line correction, a link, a
-   typo) — those are done inline rather than forked.
+   Small fixes (a one-line correction, link, or typo) are done inline.
 5. **Write the retrospective note**, through the backend. Summary paragraph first, then dated/titled
    sections (observations, decisions, follow-ups, artifacts), follow-ups and artifacts referenced by
-   their identifiers, the session identifier(s) recorded for traceability, and the note linked
-   bidirectionally to any tasks it spawned where the backend supports links. Finally the skill is
-   required to **verify** — confirm the note exists at its expected location with the session
-   identifier populated (re-reading the file, in the fallback) — because a note that silently failed
-   to write is not visible from the conversation alone.
+   their identifiers, session identifier(s) for traceability, and bidirectional links to spawned
+   tasks where supported. Verify that the note exists at its expected location and has the session
+   identifier (re-read the file in the fallback).
 
 ## Adapter discovery and the no-adapter fallback
 
-Before step 4, the skill checks the available-skills list for a **retro backend adapter**: a skill
-whose description names itself as a backend or adapter for `retro`. If one is found, the skill reads
-it and defers to its command mappings for steps 4 (converting follow-ups) and 5 (writing the note)
-instead of the fallback. Backend authors: the seam a compatible adapter must fill is the three
-responsibilities listed under "Backends" in [`retro/SKILL.md`](../retro/SKILL.md) — own follow-up
-work with a stable identifier, hold the retrospective note with the session identifier(s) recorded,
-and verify the note exists after writing. Read that section directly rather than relying on this
-summary.
+Before step 4, check available skills for a **retro backend adapter**, defined by its description.
+If found, read it and use its command mappings for steps 4 and 5. A compatible adapter must own
+follow-up work with a stable identifier, store the retrospective note with session identifier(s),
+and verify the note exists after writing; see "Backends" in [`retro/SKILL.md`](../retro/SKILL.md).
 
-**If no adapter is installed**, the skill degrades to a plain-Markdown fallback and says so
-explicitly rather than silently picking a storage location. The fallback:
+**If no adapter is installed**, state that and use this plain-Markdown fallback:
 
 - **Destination:** `retrospectives/<YYYY-MM-DD>-<short-slug>.md` in the current project, unless the
   user names a different home. If the current project is ambiguous, the skill asks once rather than
@@ -150,30 +131,26 @@ explicitly rather than silently picking a storage location. The fallback:
 
 ## Bundled resources
 
-The skill package contains a single file, [`retro/SKILL.md`](../retro/SKILL.md) — no `scripts/`,
-`references/`, or `agents/` subdirectories exist for this skill. All workflow detail, the fallback
-schema, and the harness adapter mappings live in that one file.
+The package contains only [`retro/SKILL.md`](../retro/SKILL.md); it has no `scripts/`,
+`references/`, or `agents/` directories.
 
 ## Limitations
 
 - **Harness coverage is explicit and partial.** Claude Code and Codex are fully mapped (invocation,
-  checklist tool, session-ID variable, transcript location). Other harnesses are documented as "not
-  yet mapped" — the skill runs with whatever subset of the workflow is available and asks the
-  running agent to record the new mapping in the skill file afterward, rather than failing closed.
+  checklist tool, session-ID variable, transcript location). Other harnesses are "not yet mapped";
+  run the available subset and record the mapping in the skill file afterward.
 - **No checklist tool:** the skill falls back to a scratch markdown file re-read between items,
   rather than a proper checklist.
-- **No readable transcript:** the skill is required to say so explicitly and run from in-context
-  evidence only, flagging that friction from subagents and compacted context becomes invisible in
-  that mode.
+- **No readable transcript:** state this and use in-context evidence only; subagent and compacted
+  context friction is unavailable.
 - **Deliberately excludes structured-choice UI** (`AskUserQuestion` and equivalents) for item
   discussion, even where using it would be faster, because it narrows answers to anticipated
   options.
 - **Token-usage introspection is Claude-Code-specific and schema-fragile.** The documented `jq`
   commands assume the current `message.usage` shape of the transcript JSONL; the skill file itself
   notes this can change between builds and recommends treating the commands as a starting point.
-- The skill does not itself define what counts as a "retro backend adapter" beyond a description
-  match — a malformed or unrelated skill whose description happens to claim adapter status for
-  `retro` would be picked up as-is; the skill does not describe a validation step beyond reading it.
+- Adapter discovery trusts a description match; a malformed or unrelated claimed adapter may be
+  selected, with no validation beyond reading it.
 
 ## Compatibility and version notes
 
@@ -192,7 +169,6 @@ schema, and the harness adapter mappings live in that one file.
 
 ## Verification status
 
-No automated tests, CI checks, or eval harness for this skill were found in the skill's own
-directory or referenced from it. This page's description of the workflow is based on a manual read
-of [`retro/SKILL.md`](../retro/SKILL.md) in full; the workflow itself (transcript reads, checklist
-tool calls, note writes) was not executed or independently reproduced as part of writing this page.
+No automated tests, CI checks, or eval harness were found. This page was checked against
+[`retro/SKILL.md`](../retro/SKILL.md); the transcript reads, checklist calls, and note writes were
+not executed or independently reproduced.

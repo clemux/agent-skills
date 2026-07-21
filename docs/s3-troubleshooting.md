@@ -1,9 +1,8 @@
 # s3-troubleshooting
 
 `s3-troubleshooting` was guidance for debugging S3-compatible object storage (AWS S3, Scaleway
-Object Storage, MinIO): bucket-policy resource formats, presigned POST/PUT condition mismatches,
-and a step-by-step workflow for isolating IAM/policy issues from signature issues. It is retained
-in the repository as a historical record, not as guidance to follow.
+Object Storage, MinIO), including bucket-policy resources, presigned POST/PUT conditions, and
+isolating IAM/policy from signature issues. It is historical, not recommended guidance.
 
 ## Status
 
@@ -13,27 +12,20 @@ Historical; not recommended. `install.conf.sample` maps it to no harness:
 s3-troubleshooting      none
 ```
 
-[README.md](../README.md) already flags it: "**Historical; not recommended. May contain incorrect
-or unsafe instructions.**" That warning is correct and should be treated as authoritative. The
-skill is kept in the repository only as a record of what was tried, not as a maintained resource —
-its presence in the tree is not an endorsement, and its trigger phrases (in `SKILL.md`'s
-`description`) are still broad enough to look like active, invokable guidance. **Retention is not
-validation.** Nothing about this skill being present, having a plausible-looking checklist, or
-having survived past reviews means its instructions are safe to run. It must not be re-enabled or
-pointed to as recommended guidance without a full rewrite against current provider documentation.
+[`README.md`](../README.md) flags it: "**Historical; not recommended. May contain incorrect or
+unsafe instructions.**" Its presence and past review do not validate its instructions. Its broad
+`SKILL.md` trigger phrases can look active, but it must not be re-enabled or recommended without a
+full rewrite using current provider documentation.
 
 ## Why it was retired
 
-The skill was never backed by scripts or tests — the package is `SKILL.md` plus one reference file
-(`references/bucket-policy-patterns.md`), and every command and policy shown is illustrative text
-that was, as far as the repository shows, never executed or verified against a real bucket. Several
-of its worked examples also demonstrate patterns that are unsafe to run as-is (see below), which
-would make them actively harmful advice rather than merely outdated.
+The package contains `SKILL.md` and `references/bucket-policy-patterns.md`, with no scripts or
+tests. Repository evidence does not show any command or policy verified against a real bucket.
+Several examples are unsafe to run as-is.
 
 ## Known risks
 
-If re-enabled or copied out as-is, someone following the examples verbatim would reproduce several
-unsafe patterns baked into the skill's own guidance:
+Re-enabling or copying these examples as-is reproduces unsafe patterns:
 
 - **`Action: "*"` in bucket policies.** The skill's own "fixed" example for the missing-resource
   pitfall still grants `"Action": "*"` — it corrects the `Resource` field but never narrows the
@@ -58,17 +50,14 @@ unsafe patterns baked into the skill's own guidance:
   command line — all of which could end up in shell history or terminal logs if handled with real
   values instead of placeholders.
 
-Beyond these concrete patterns, several of the skill's factual claims are the kind that drift with
-provider changes and were not dated or version-qualified when written: IAM/bucket-policy
-propagation delay ("30-60s"), which endpoint/signing-region rules apply per provider, and the
-claimed requirement that the `file` field be last in a multipart presigned POST body. None of these
-should be trusted without checking current provider documentation first.
+Other claims may drift with provider changes: IAM/bucket-policy propagation delay ("30-60s"),
+provider endpoint/signing-region rules, and whether the `file` field must be last in a multipart
+presigned POST body. Check current provider documentation.
 
 ## Migration / replacement
 
-There is no maintained skill in this repository that replaces `s3-troubleshooting` as of this
-writing; check [skills.md](skills.md) for the current inventory before assuming otherwise. A safe
-replacement, if one is built, would need at minimum:
+There is no maintained replacement skill; check [skills.md](skills.md) for the current inventory.
+A replacement needs at least:
 
 - Guidance sourced from current provider documentation at time of use, not copied from this skill,
   since propagation times, endpoint rules, and multipart field-order requirements are
@@ -89,21 +78,18 @@ replacement, if one is built, would need at minimum:
 
 ## Verification status
 
-Never validated. The skill package contains no scripts and no tests, and nothing in the repository
-indicates its commands or policy examples were run against a real AWS S3, Scaleway, or MinIO
-endpoint. Treat every command, policy JSON, and timing claim on this page and in the skill's own
-files as unverified until checked against current provider documentation.
+Never validated. It has no scripts or tests, and the repository does not show its commands or
+policies run against AWS S3, Scaleway, or MinIO. Treat commands, policy JSON, and timing claims as
+unverified until checked against current provider documentation.
 
 ## Example (illustrative only)
 
-The transcript below is a constructed illustration of what following the skill's Step 1 diagnostic
-would look like — it is not a captured session, and the values are placeholders:
+This constructed Step 1 illustration is not a captured session; values are placeholders:
 
 ```text
 $ echo "test" | aws s3 cp - s3://<bucket>/test.txt --endpoint-url <endpoint> --region <region>
 upload failed: - to s3://<bucket>/test.txt An error occurred (AccessDenied) ...
 ```
 
-This illustrates the failure mode the skill's checklist was meant to help diagnose (a bucket policy
-missing the `bucket-name/*` resource). It does not vouch for the safety of running the underlying
-commands against a real bucket; see "Known risks" above before doing so.
+It illustrates an `AccessDenied` failure the workflow was meant to diagnose; the output does not
+establish the root cause. See "Known risks" before running the command against a real bucket.

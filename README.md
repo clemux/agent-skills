@@ -1,13 +1,20 @@
 # agent-skills
 
-Shared agent skills for Claude Code, Codex, and other harnesses. This repository is the **single
-source of truth**: a skill lives here once, and each harness reaches it through a symlink.
+A personal collection of agent skills, shared for illustration only. They are not a vetted library
+or a set of recommendations. There is no claim that any skill is good, complete, safe, or sensible
+to use as-is, and only some are still used by the author.
+
+Much of the documentation was generated with AI. Sorry for the verbosity, repetition, and any
+mistakes. Read the source and check the instructions before using a skill.
+
+For the author's local setup, this repository is the **single source of truth**: a skill lives here
+once, and each harness reaches it through a symlink.
 
 ## Layout
 
 Each skill has a top-level directory containing a `SKILL.md` with `name` and `description`
-frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs. Every skill also has a
-detailed documentation page under [`docs/`](docs/skills.md) — the skill names below link to them.
+frontmatter, plus any `scripts/`, `references/`, or `assets/` it needs. Each skill also has a
+documentation page under [`docs/`](docs/skills.md) — the skill names below link to them.
 
 | Skill | What it does | Default roots | Risk |
 | --- | --- | --- | --- |
@@ -88,8 +95,7 @@ See [docs/installing.md](docs/installing.md) for the exact manifest and removal 
 3. Document it: a row in the table above, a `docs/<skill-name>.md` page, and a row in
    [docs/skills.md](docs/skills.md). See [docs/contributing.md](docs/contributing.md) for the full
    definition of done.
-4. Commit. Skill changes are commit-worthy on their own — an uncommitted skill is one that only
-   exists on this machine.
+4. Commit the change.
 
 Shell scripts are linted by `shellcheck` via pre-commit; see
 [docs/verification.md](docs/verification.md) for all checks.

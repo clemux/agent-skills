@@ -1,8 +1,7 @@
 # accessibility-testing
 
-A historical skill for running Lighthouse accessibility audits and checking WCAG color-contrast
-ratios in a Quasar-framework project. It predates this documentation set, is mapped to no harness
-by default, and is kept in the repository as an unvalidated reference rather than an active tool.
+Historical guidance for Lighthouse audits and WCAG color-contrast checks in a Quasar project. It
+is mapped to no harness by default and retained as an unvalidated reference.
 
 ## Status
 
@@ -14,10 +13,8 @@ Historical; not recommended for direct use.
 accessibility-testing   none
 ```
 
-This matches the summary already in [`README.md`](../README.md): "Historical; not recommended.
-Legacy Lighthouse and contrast-checking workflow." It is retained in the repository as a record of
-a past workflow and as raw material a future accessibility skill could draw on, not because it is
-fit to run as-is.
+This matches [`README.md`](../README.md): "Historical; not recommended. Legacy Lighthouse and
+contrast-checking workflow." It is not fit to run as-is.
 
 ## Why it was retired
 
@@ -27,12 +24,11 @@ fit to run as-is.
   screen-reader or assistive-technology procedure of any kind. Its actual scope is a Lighthouse
   score check plus a manual color-contrast ratio check — a small subset of what WCAG conformance
   requires.
-- **Framework-specific.** The workflow assumes a Quasar app: it references a boot file
+- **Framework-specific.** The workflow assumes Quasar: it references a boot file
   (`src/boot/dark-mode.ts`), Quasar components (`q-btn`, `q-separator`), and Quasar's `$q.dark`
   API. It is not written to generalize to other frontend stacks.
-- **Environment-specific.** It hardcodes `http://localhost:9000` as the dev-server URL and
-  `pnpm lint` as the lint command, with no indication of how to adapt either for a different
-  project layout or package manager.
+- **Environment-specific.** It hardcodes `http://localhost:9000` and `pnpm lint`, without
+  adaptation guidance for another layout or package manager.
 - **Side-effecting.** The documented commands write `./report.json` and `./report_dark.json`
   directly into the project's working directory via `--output-path`, and the dark-mode workflow
   instructs editing a source file in place ("Temporarily force dark mode in boot file ... Remove

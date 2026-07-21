@@ -1,18 +1,17 @@
 # obsidian-personal
 
-`obsidian-personal` is a machine-specific adapter that supplies the identity, filesystem paths, CLI
-targeting rules, verified command subset, plugin-state locations, and workflow routing for one
-user's personal Obsidian vault. It is the layer on top of the generic `obsidian:obsidian-cli`
-plugin skill that pins operations to a single configured vault and encodes locally verified
-behavior of the standalone `obsidian` CLI. It is also this repository's one deliberate exception to
-the publication boundary: the tracked [`SKILL.md`](../obsidian-personal/SKILL.md) hard-codes a
+`obsidian-personal` is a machine-specific adapter for one personal Obsidian vault. It supplies its
+identity, paths, CLI targeting rules, verified command subset, plugin-state locations, and workflow
+routing. It layers on the generic `obsidian:obsidian-cli` plugin skill, pinning operations to one
+configured vault and recording verified standalone `obsidian` CLI behavior. It is this repository's
+one deliberate publication-boundary exception: the tracked
+[`SKILL.md`](../obsidian-personal/SKILL.md) hard-codes a
 personal vault name, an absolute home-directory path, plugin-state file locations, private workflow
 routes, and a named Base view, and it is explicitly allowlisted in the boundary check pending a
 future template/private-instance split.
 
-This page describes the skill without reproducing any of those private values. Where a specific
-vault name, absolute path, or view name is needed, the canonical source is
-[`SKILL.md`](../obsidian-personal/SKILL.md) itself.
+This page omits those private values. For a vault name, absolute path, or view name, use
+[`SKILL.md`](../obsidian-personal/SKILL.md).
 
 ## Status
 
@@ -23,25 +22,19 @@ Active. It is enabled on all three harness roots. The default mapping in
 obsidian-personal       claude codex agents
 ```
 
-That means a fresh local copy of `install.conf` links it into the Claude Code, Codex, and neutral
-`~/.agents/skills` roots on every machine that starts from the sample — see [skills.md](skills.md)
-for how the manifest drives installation. It is meant to be both model-triggered (its description
-fires on personal-vault work) and user-invoked (the bundled `agents/openai.yaml` exposes a
-`$obsidian-personal` default prompt). Because the sample enables it everywhere, any machine that is
-not the configured personal environment must **opt out or replace the entire local configuration** —
-not merely edit the two hard-coded strings the README mentions. See
-[Compatibility and version notes](#compatibility-and-version-notes).
+A fresh `install.conf` copied from the sample links it into Claude Code, Codex, and
+`~/.agents/skills`; see [skills.md](skills.md) for manifest installation. The description triggers
+it for personal-vault work, and `agents/openai.yaml` exposes a `$obsidian-personal` default prompt.
+Because the sample enables it everywhere, a machine outside the configured personal environment
+must **opt out or replace the entire local configuration**, not merely edit two hard-coded strings.
 
 ## Triggers
 
-Per its description frontmatter, the skill fires whenever an agent is interacting with the personal
-vault or running the `obsidian` CLI on this machine. It is scoped as a complement to the generic
-`obsidian:obsidian-cli` plugin skill: that plugin skill covers full CLI syntax, and
-`obsidian-personal` adds the machine-specific facts and the already-verified command subset on top.
+The description frontmatter triggers when an agent interacts with the personal vault or runs the
+`obsidian` CLI on this machine. The generic `obsidian:obsidian-cli` plugin skill covers full CLI
+syntax; `obsidian-personal` adds machine-specific facts and the verified command subset.
 
-The trigger is broad ("whenever interacting with the personal vault or running the `obsidian` CLI
-on this machine"). It applies only to the single configured personal vault; generic Obsidian
-guidance applies to any other vault. See [Read/write and safety boundaries](#readwrite-and-safety-boundaries).
+It applies only to the configured personal vault; use generic Obsidian guidance for any other vault.
 
 ## Prerequisites
 
@@ -85,11 +78,9 @@ other vault, generic Obsidian guidance applies and this adapter's pinned targeti
 
 **Deletes:**
 
-- `delete` moves a note to Obsidian's recoverable trash by default. The skill notes that the
-  `permanent` flag is required to delete irrecoverably, and frames trash-by-default as the safe
-  behavior.
-- `create` errors rather than clobbering an existing file unless `overwrite` is passed; the skill
-  frames the erroring default as safe.
+- `delete` moves a note to Obsidian's recoverable trash by default; `permanent` is required for
+  irreversible deletion.
+- `create` errors rather than clobbering an existing file unless `overwrite` is passed.
 
 **Launch:** the first CLI call may launch the Obsidian application.
 
@@ -98,8 +89,8 @@ create, and any write touching a shared note or maintaining an invariant (the sk
 serialize such writes and read them back, since the CLI documentation makes no transactional
 guarantee for writes). Independent read-only calls may run concurrently after preflight.
 
-The skill's working mode is to operate through the `obsidian` CLI rather than editing vault files
-directly, so Obsidian's index and open panes stay consistent.
+Use the `obsidian` CLI rather than editing vault files directly so its index and open panes stay
+consistent.
 
 ## Typical workflow
 
@@ -129,8 +120,8 @@ directly, so Obsidian's index and open panes stay consistent.
   a display name, short description, and a `$obsidian-personal` default prompt to target and operate
   on the personal vault with this machine's verified CLI behavior.
 
-There are no `scripts/` or `references/` directories; all machine-specific facts, the verified
-command table, and the operational rules live inline in [`SKILL.md`](../obsidian-personal/SKILL.md).
+There are no `scripts/` or `references/` directories. [`SKILL.md`](../obsidian-personal/SKILL.md)
+contains the machine-specific facts, verified command table, and operational rules.
 
 ## Limitations
 
@@ -155,8 +146,8 @@ command table, and the operational rules live inline in [`SKILL.md`](../obsidian
 
 ## Compatibility and version notes
 
-Version-sensitive claims below are drawn from the skill and are dated as the skill states them; a
-maintainer should re-verify them against the installed environment.
+The following version-sensitive claims are dated in the skill and should be re-verified against the
+installed environment.
 
 - Standalone `obsidian` CLI from the **Obsidian 1.12.7+ installer**. Concurrency of independent
   read-only calls and headless `base:query` were verified on **1.12.7**. The `silent` flag is
@@ -165,10 +156,9 @@ maintainer should re-verify them against the installed environment.
   and `.base` files render; `obsidian-kanban` (community) was enabled **as of 2026-07-07**. Mermaid
   renders natively with no plugin. The skill instructs agents to read the live plugin-state files
   rather than trust these snapshots.
-- **README warning (updated 2026-07-21):** the repository README's privacy warning now states the
-  full coupling — the skill hard-codes the vault name and path plus plugin-state locations,
-  workflow routes, and a named Base view, so a real reuse means replacing the entire local
-  configuration. Earlier README wording ("review and replace both values") understated this.
+- **README warning (updated 2026-07-21):** the README states the full coupling: vault name and
+  path, plugin-state locations, workflow routes, and a named Base view. Reuse requires replacing
+  the entire local configuration; earlier wording ("review and replace both values") understated it.
 - **Intended future direction:** the allowlist entry documents a planned split into a separately
   owned portable **template** and a **private instance**, after which the portable core could be
   shared and the machine-specific values would live only in the private instance.
@@ -187,8 +177,8 @@ maintainer should re-verify them against the installed environment.
 
 ## Example
 
-Illustrative only — placeholder values, not a real capture. Replace `<vault>` with the configured
-vault name from [`SKILL.md`](../obsidian-personal/SKILL.md).
+Placeholder values only. Replace `<vault>` with the configured vault name from
+[`SKILL.md`](../obsidian-personal/SKILL.md).
 
 ```bash
 # Session preflight (launches Obsidian if needed; retry once on a startup-only failure)

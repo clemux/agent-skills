@@ -4,9 +4,9 @@
 where a suite spends time (baseline timing, collection/import cost, fixture setup/teardown chains,
 and CPU call trees via Pyinstrument), analyzes the bottlenecks, optionally consolidates redundant
 tests, applies fixes one at a time while re-measuring, and — when the user grants the scope — commits
-each change and writes a report. Its central discipline is "measure first, optimize on data, never
-guess," and every action that mutates the project (installing tools, editing test infrastructure,
-merging tests, committing, writing a report) is gated on explicit user scope. See the canonical
+each change and writes a report. Measure before optimizing; every project mutation (installing tools,
+editing test infrastructure, merging tests, committing, or writing a report) requires explicit user
+scope. See the canonical
 [SKILL.md](../pytest-profiling/SKILL.md) for the full procedure.
 
 ## Status
@@ -20,8 +20,8 @@ pytest-profiling        claude codex agents
 It is installed on all three roots (Claude Code, Codex, and the neutral `~/.agents/skills` root).
 
 The skill is primarily **model-triggered**: its `description` frontmatter lists natural-language
-phrases that fire it automatically. It is equally usable when a user invokes it by name. Either way
-it runs as an in-context procedure the agent follows, not as a standalone CLI.
+phrases that fire it automatically. Users can also invoke it by name. It is an in-context procedure,
+not a standalone CLI.
 
 ## Triggers
 
@@ -55,7 +55,7 @@ Every project-mutating action is gated on user-granted scope:
 - **Installing Pyinstrument as a dependency** — only if the user agrees; the default path avoids any
   dependency change.
 - **Mutating code or test infrastructure** — fixes go in test infrastructure only; production code is
-  kept unchanged (a stated key principle). Fixes are applied one at a time.
+  kept unchanged. Fixes are applied one at a time.
 - **Consolidating or deleting tests** (Phase 2.5) — changes coverage and how failures read, so the
   skill presents candidate groups and its reasoning and gets agreement **before** merging or deleting
   any test.
@@ -154,12 +154,9 @@ material (hotspot catalog, common fixes, and the report template) inline.
 - The common-fix examples (bcrypt, SQLAlchemy `create_all`, PostgreSQL `TRUNCATE`, ASGI `TestClient`,
   RSA key generation, subprocess-per-test CLI suites) come from a hotspot catalog that states their
   timing figures as concrete numbers. Treat them as starting points to confirm by measurement on the
-  target project, not guaranteed characteristics — this caution is this page's, and is consistent
-  with the skill's own measure-first discipline.
-- "Nothing to fix" is a legitimate result; the skill declines to force a low-value change just to
-  produce a commit.
-- Consolidating tests changes coverage, so it cannot proceed without user agreement — a deliberate
-  gate, not an automation gap.
+  target project, not guaranteed characteristics.
+- "Nothing to fix" is a legitimate result; do not force a low-value change to produce a commit.
+- Consolidating tests changes coverage and requires user agreement.
 
 ## Compatibility and version notes
 
@@ -170,7 +167,7 @@ material (hotspot catalog, common fixes, and the report template) inline.
 - Third-party timing figures in the SKILL (for example "~200ms per bcrypt call at 12 rounds", "~300ms
   for `TRUNCATE … CASCADE`", "~50–100ms subprocess startup") are stated there as plain figures.
   They are release/environment-specific; re-verify against the target project rather than quoting
-  them as fixed (this page's caution, not SKILL.md wording).
+  them as fixed.
 - The README previously carried `pytest-profiling` portability notes that predated the current
   SKILL.md; they were removed in favor of this page. Where any older copy of them resurfaces,
   SKILL.md is authoritative.

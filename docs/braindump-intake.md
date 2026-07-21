@@ -1,11 +1,9 @@
 # Braindump intake
 
-Converts a free-form, multi-item braindump into a numbered ledger of atomic outcomes, reviews the
-ledger one item at a time with the user, and — when the user asks for durable records — hands
-confirmed items to whatever task or capture mechanism is available, accepting only identifiers that
-mechanism verifies. The skill owns the intake conversation, item ordering, and ledger state; it
-deliberately does not own destinations, schemas, or identifier formats, which belong to the
-persistence workflow it hands off to.
+Converts a free-form, multi-item braindump into a numbered ledger of atomic outcomes and reviews
+one item at a time. When durable records are requested, it routes confirmed items to an available
+task or capture mechanism and accepts only identifiers that mechanism verifies. It owns the intake,
+item ordering, and ledger state; persistence workflows own destinations, schemas, and identifiers.
 
 ## Status
 
@@ -15,12 +13,10 @@ Active. Per [`install.conf.sample`](../install.conf.sample):
 braindump-intake        claude codex agents
 ```
 
-This is the default mapping for all three harness roots (Claude Code, Codex, and the neutral
-`~/.agents/skills` root) — the skill is not restricted to a subset of harnesses.
+Default mapping for Claude Code, Codex, and the neutral `~/.agents/skills` root.
 
-The skill is model-triggered: its `description` frontmatter is the sole trigger mechanism (per
-[`AGENTS.md`](../AGENTS.md)), so an agent invokes it automatically when a user message matches the
-description below. It has no companion slash command or script the user runs directly.
+The `description` frontmatter is the only trigger mechanism (per [`AGENTS.md`](../AGENTS.md));
+there is no slash command or script.
 
 ## Triggers
 
@@ -38,9 +34,8 @@ when the user:
 
 - No external tools, authentication, or network access are required by the skill itself.
 - Durable persistence (writing a task, ticket, or note) requires a separate persistence tool or
-  companion skill to be available in the session. The skill explicitly does not bundle one — see
-  "Bundled resources" below — and functions correctly with none available, returning a normalized
-  handoff instead of inventing a write.
+  companion skill. If none is available, it returns a normalized handoff rather than inventing a
+  write.
 - No other skill is a hard dependency. The worked-example reference mentions generic "task" and
   "capture" mechanisms without naming a specific companion skill.
 
@@ -50,16 +45,13 @@ when the user:
   ticket or note identifier) for validation through its owning workflow; cheap local evidence such
   as repository instructions or a named prior implementation, gathered only when it improves the
   next review decision.
-- **Writes:** nothing directly. The skill never performs a persistence write itself — it routes a
-  confirmed item to an external task or capture mechanism and records only the identifier that
-  mechanism returns or verifies.
+- **Writes:** none directly. It routes a confirmed item to an external task or capture mechanism
+  and records only an identifier that mechanism returns or verifies.
 - **External/human-facing effects:** any actual creation or repair of a ticket, note, or record
   happens inside the delegated persistence workflow, not this skill.
-- **Requires explicit confirmation before acting:** every item, in both modes, before it is routed
-  for persistence — the skill states a one-shot exception (see "One-shot vs guided flows" below)
-  but even there restricts itself to outcomes, writes, and destinations the user stated
-  unambiguously, flagging remaining ambiguity in the final report instead of persisting a guess.
-  Batch-writing unconfirmed items is explicitly disallowed.
+- **Requires explicit confirmation before acting:** every item before persistence. In one-shot
+  mode, it handles only outcomes, writes, and destinations stated unambiguously; it reports the
+  rest rather than guessing. It must not batch-write unconfirmed items.
 
 ## Typical workflow
 
@@ -68,8 +60,7 @@ when the user:
    just process this") is treated as an implicit Quick-mode selection.
 2. **Build the ledger.** The dump is split into one numbered item per atomic outcome. An explicitly
    requested final meta-item (for example, "and capture improvements to this intake process itself")
-   stays last; later additions are inserted before it. The agent mirrors the ledger in its own
-   plan/todo UI when one is available.
+   stays last; later additions go before it. Mirror the ledger in a plan/todo UI when available.
 3. **Process items one at a time**, keeping exactly one item `In progress`:
    - **Preflight** — validate any supplied durable reference through its owning workflow; surface
      validation failures rather than guessing, adding a distinct repair item when needed.
@@ -83,22 +74,20 @@ when the user:
    - **Update the ledger** — attach only an identifier actually returned or verified, then mark the
      item `Persisted`; keep failed writes `Blocked` and unpersisted reviewed items `Confirmed`.
 4. **Close the intake** once every item is `Confirmed`, `Persisted`, `Blocked`, or `Skipped`, and
-   report the final ledger, persisted identifiers and outcomes, handoffs, blockers, repairs, and
-   skipped items. A planned filename or identifier is never reported as already created.
+   report the ledger, persisted identifiers and outcomes, handoffs, blockers, repairs, and skipped
+   items. Never report a planned filename or identifier as created.
 
 ### Normalized handoff contract
 
 When no persistence mechanism is available for a confirmed item, the skill returns a handoff
-containing: the confirmed title, the outcome, requirements, relevant context, and the intended
-artifact type — and marks the item `Blocked` with the missing capability named. This is the only
-shape in which the skill hands off unwritten work; it never invents a destination, filename, or
-identifier to stand in for a real write.
+containing the confirmed title, outcome, requirements, context, and intended artifact type, and
+marks it `Blocked` with the missing capability. It never invents a destination, filename, or
+identifier for unwritten work.
 
 ### One-shot vs guided flows
 
-- **Guided** reviews one scope-changing decision question at a time per item before confirming
-  it. Neither mode is a standing default: the skill asks which to use unless the user already
-  chose one.
+- **Guided** reviews one scope-changing decision question at a time per item. Ask which mode to
+  use unless the user already chose one.
 - **Quick** confirms a short name and one-sentence outcome per item, without a decision question.
 - **One-shot** is a variant reachable from either mode: when the user cannot or will not answer
   questions ("no questions, just process this"), the agent falls back to Quick mode and treats the
@@ -112,10 +101,9 @@ Per-item mode overrides are allowed within a single intake session in any of the
 - [`SKILL.md`](../braindump-intake/SKILL.md) — the full procedure: ledger states, the review loop,
   the normalized handoff contract, and the mobile-restatement rule.
 - [`references/worked-example.md`](../braindump-intake/references/worked-example.md) — a synthetic
-  scenario used to calibrate or forward-test the interaction shape (reference repair, cheap context
-  gathering, one-question reviews, backend-neutral persistence, a preserved final meta-item). The
-  skill file itself states its names and identifiers (e.g. `PROJECT-DEMO`, `WORK-201`, `NOTE-044`)
-  are fictional and must not be reused as real content in a future braindump.
+  scenario covering reference repair, context gathering, one-question reviews, backend-neutral
+  persistence, and a preserved final meta-item. Its names and identifiers (for example,
+  `PROJECT-DEMO`, `WORK-201`, `NOTE-044`) are fictional and must not be reused.
 - [`agents/openai.yaml`](../braindump-intake/agents/openai.yaml) — optional OpenAI-interface
   metadata (display name, short description, default prompt) for harnesses that consume that
   format. It is not part of the backend-neutral core procedure in `SKILL.md` and is not required
@@ -123,16 +111,16 @@ Per-item mode overrides are allowed within a single intake session in any of the
 
 ## Ledger state-transition reference
 
-The per-line ledger uses exactly six states. Every numbered line must show its own current state;
-a collective claim like "all four persisted" is disallowed because it hides per-item drift.
+The ledger has six states. Every numbered line shows its own state; do not replace this with a
+collective claim such as "all four persisted."
 
 | State | Entered when | Notes |
 | --- | --- | --- |
 | `Pending` | Item is added to the ledger and not yet being reviewed. | Initial state for every new item. |
-| `In progress` | The item is the one currently being reviewed or acted on. | Exactly one item is `In progress` at a time; an item the current reply is reviewing or acting on is already `In progress`, not `Pending`. |
-| `Confirmed` | Review completes and either no persistence was requested, or persistence was requested but the write has not yet happened. | Also the resting state for an unpersisted but reviewed item after an update step. |
+| `In progress` | The item is currently being reviewed or acted on. | Exactly one item is `In progress`; an item reviewed or acted on in the current reply is not `Pending`. |
+| `Confirmed` | Review completes and no persistence was requested, or the requested write has not happened. | Resting state for a reviewed, unpersisted item. |
 | `Persisted` | A write succeeds and the persistence workflow returns or verifies an identifier. | Only an identifier actually returned or verified may be attached — never a planned or guessed one. |
-| `Blocked` | A persistence write fails, or no persistence mechanism is available for a requested write. | Reserved for persistence-side failures. **Not** used for an item whose underlying work merely lacks inputs (data, access, a decision) — that item is still reviewable: confirm it and note what the work will need, rather than blocking it. |
+| `Blocked` | A persistence write fails, or no persistence mechanism is available for a requested write. | Reserved for persistence failures. Do not use it when underlying work lacks data, access, or a decision; confirm the item and note the need. |
 | `Skipped` | The user declines to pursue the item during review. | The reason is noted for the final report. |
 
 Intake closes only when every item is in one of `Confirmed`, `Persisted`, `Blocked`, or `Skipped`.
@@ -157,11 +145,9 @@ stateDiagram-v2
   persistence ends the intake `Blocked`.
 - It does not resolve which persistence backend to use when more than one is plausible — it surfaces
   the choice to the user rather than picking one.
-- It intentionally avoids becoming an audit tool: "cheap local evidence" gathering during preflight
-  is bounded, and repository surveys are treated as preparation rather than automatically durable
-  work.
-- No automated test harness, script, or eval is bundled with the skill (unverified beyond what is
-  described in "Verification status" below).
+- Preflight evidence gathering is bounded; repository surveys are preparation, not automatically
+  durable work.
+- No automated test harness, script, or eval is bundled.
 
 ## Compatibility and version notes
 
@@ -179,9 +165,8 @@ stateDiagram-v2
 
 - No automated tests, CI checks, or eval scripts for this skill were found under its directory or
   elsewhere in the repository at the time of writing.
-- The procedure was verified by reading `SKILL.md` and `references/worked-example.md` in full; the
-  worked example is explicitly synthetic and is a calibration aid, not a captured transcript or a
-  test fixture with assertions.
+- The procedure was verified by reading `SKILL.md` and `references/worked-example.md`; the example
+  is synthetic, not a captured transcript or assertion-bearing fixture.
 - The example below is illustrative only, not a real captured transcript.
 
 ## Example (illustrative)

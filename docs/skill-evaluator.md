@@ -17,10 +17,9 @@ See [skills.md](skills.md) for the full skill index.
 The skill drives four bundled Python scripts and five reference documents through a fixed loop:
 build an eval set, run paired `codex exec` configurations in isolated throwaway Git repositories,
 grade the artifacts each run produced, aggregate the grades into a benchmark, and review the
-outputs. Every run is written to an on-disk artifact tree so grading and review work from saved
-evidence rather than executor self-reports. Because each configuration spends real Codex tokens per
-eval per run, the skill is explicitly designed to gate expensive or externally-connected runs
-behind user approval.
+outputs. Every run is written to an on-disk artifact tree so grading and review use saved evidence.
+Each configuration spends real Codex tokens per eval per run, so expensive or externally-connected
+runs require user approval.
 
 ## 2. Status
 
@@ -31,9 +30,8 @@ Active. Default harness mapping from
 skill-evaluator         codex
 ```
 
-That is the only default target: the skill is installed for **Codex only**, not Claude Code and not
-the neutral `~/.agents/skills` root. The scripts assume the Codex CLI and Codex JSONL event formats,
-so this is a deliberate scoping, not an oversight.
+The skill is installed for **Codex only**, not Claude Code or the neutral `~/.agents/skills` root.
+The scripts assume the Codex CLI and Codex JSONL event formats.
 
 The repository [`README.md`](../README.md) skill table also shows this Codex-only default in its
 "Default roots" column; `install.conf.sample` remains the authoritative source both draw from.
@@ -137,7 +135,7 @@ Isolation and human-facing surfaces:
 
 ## 7. Bundled resources
 
-Canonical files live in the skill package; this page links rather than duplicates them.
+Canonical files live in the skill package.
 
 ### Scripts and CLI contracts
 
@@ -237,8 +235,8 @@ parallel `query-<id>/run-<n>/` layout with `observation.json` plus a workspace `
 ## 8. Limitations
 
 - **Cost and time.** Every non-`--prepare-only` run spends real Codex tokens; cost scales with
-  evals × configurations × `--runs-per-config`. The skill deliberately requires approval before
-  expensive runs. Default timeouts are 900 s per eval run and 300 s per trigger query (as of
+  evals × configurations × `--runs-per-config`. Expensive runs require approval. Default timeouts
+  are 900 s per eval run and 300 s per trigger query (as of
   2026-07-21).
 - **Grading is not automated by these scripts.** `run_eval.py` produces artifacts; `grading.json`
   is written by the grading pass (agent or check scripts), and `aggregate_benchmark.py` warns and
@@ -254,8 +252,8 @@ parallel `query-<id>/run-<n>/` layout with `observation.json` plus a workspace `
   dedicated skill-activation event, so an absent observation does not prove the skill was inactive.
   Do not build an automatic description-rewrite loop on this signal, and require human review before
   editing live frontmatter.
-- **No package-specific automated test suite.** Despite the size of the bundle, `skill-evaluator`
-  ships no unit or integration tests of its own scripts (see Verification status).
+- **No package-specific automated test suite.** `skill-evaluator` ships no unit or integration tests
+  for its scripts (see Verification status).
 
 ## 9. Compatibility and version notes
 

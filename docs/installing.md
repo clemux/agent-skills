@@ -1,10 +1,8 @@
 # Installing skills
 
-This repository is the single source of truth for the skills it contains. Harnesses do not read
-skill content from this repo directly — each machine runs `install.sh`, which symlinks every skill
-into the harness directories a machine-local manifest (`install.conf`) says it belongs in. This
-page covers the mechanics of that manifest and script. For the policy behind them — why the repo
-is the only place to edit a skill, and what "drift" means here — see [AGENTS.md](../AGENTS.md).
+This repository is the source of truth for its skills. Each machine runs `install.sh`, which uses a
+machine-local manifest (`install.conf`) to symlink skills into harness directories. For the policy
+on editing skills and drift, see [AGENTS.md](../AGENTS.md).
 
 ## The three harness roots
 
@@ -16,22 +14,19 @@ is the only place to edit a skill, and what "drift" means here — see [AGENTS.m
 | `codex` | `~/.codex/skills/` | Codex |
 | `agents` | `~/.agents/skills/` | Neutral shared root, not tied to one harness |
 
-Each harness discovers skills by scanning its own directory. A skill is visible to a harness only
-if a symlink for it exists under that harness's root — nothing else makes a skill available.
+Each harness scans its own directory. A skill is visible only when its symlink exists under that
+harness's root.
 
 ## Symlink, don't copy
 
-`install.sh` links skills into the harness roots with `ln -s`; it never copies skill content. The
-reason is drift: if a skill were copied into `~/.claude/skills/<skill-name>/`, editing that copy
-would not change the repo, and editing the repo would not change that copy. The two would silently
-diverge, and nothing would tell you which version a given harness was actually running, or that
-they disagreed at all. A symlink holds no content of its own, so there is nothing to diverge — the
-repo file is the only file, and `git status` in the repo reflects everything every harness sees.
+`install.sh` links skills into harness roots with `ln -s`; it never copies content. A copied skill
+can diverge silently: edits to `~/.claude/skills/<skill-name>/` do not change the repo, and repo
+edits do not change the copy. A symlink holds no content, so the repo remains the only file and
+`git status` reflects what every harness sees.
 
-Because of this, `install.sh` treats any **real file or directory** it finds at a target path as
-a **detached copy** — content that may hold real edits nobody brought back into the repo — and
-refuses to touch it without `--force` (see below). A symlink that points outside the repo is mere
-drift, not a copy: it holds no content, so it is removed and relinked without `--force`.
+`install.sh` treats any **real file or directory** at a target path as a **detached copy**, which
+may contain edits not brought back into the repo, and refuses to touch it without `--force`. A
+symlink outside the repo is drift, not a copy, and is relinked without `--force`.
 
 ## The manifest: `install.conf`
 
@@ -78,30 +73,23 @@ not just the roots mentioned on that skill's line:
 - **Root not targeted by the manifest, entry is a real directory (a detached copy)**: left in place
   with a warning unless `--force` is given. With `--force`, it is deleted outright.
 
-In short: `--force` is only required to touch **real directories** (detached copies), in either
-direction (replacing one with a symlink, or deleting one that shouldn't exist there). Symlinks are
-created and removed freely in every run, with or without `--force`, because they hold no content
-that could be lost.
+`--force` is required only to touch **real directories** (detached copies), whether replacing one
+with a symlink or deleting an unlisted one. Symlinks are created and removed without `--force`
+because they hold no content.
 
-At the end of a run, `install.sh` prints counts of skills linked, removed, and detached copies
-found, plus a reminder to reconcile copies deliberately if any remain.
+At the end of a run, `install.sh` prints counts of linked and removed skills and detached copies.
 
 ### `--dry-run`
 
-Add `--dry-run` to see every action `install.sh` would take — links to create, symlinks to remove,
-copies it would flag or replace — without writing anything. Use it after editing `install.conf`,
-or periodically to confirm the harness roots still match the manifest (see
-[AGENTS.md](../AGENTS.md) on why the working tree being the deployed state makes this worth
-checking).
+Add `--dry-run` to see links to create, symlinks to remove, and copies to flag or replace without
+writing anything. Use it after editing `install.conf` or to confirm roots still match the manifest.
 
 ## Availability vs. compatibility
 
-Mapping a skill to a root in `install.conf` only makes it **visible** to that harness — `install.sh`
-creates a symlink and nothing more. It does not check whether the skill's prerequisites are met on
-this machine: bundled scripts may assume tools, credentials, file layouts, or environment variables
-that aren't installed or configured. A skill can be linked and still not run correctly. Check the
-skill's own `SKILL.md` (and any `references/` it points to) for what it actually requires before
-relying on it; see [skills.md](skills.md) for the inventory of skills and their notes.
+Mapping a skill to a root makes it **visible** to that harness; `install.sh` only creates a symlink.
+It does not check prerequisites such as tools, credentials, file layouts, or environment variables.
+Check the skill's `SKILL.md` and referenced materials before relying on it; [skills.md](skills.md)
+lists the skills and notes.
 
 ## Bootstrapping a fresh machine
 

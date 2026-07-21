@@ -1,12 +1,9 @@
 # Skill catalog and compatibility matrix
 
-This page is the index for every skill in the repository: what each one does, whether it is still
-recommended, where it is installed by default, how much it can change on a machine when it runs, and
-what it needs to work. One row per skill; each name links to that skill's own documentation page.
-The data here is drawn from each skill's `SKILL.md` frontmatter and from
-[`../install.conf.sample`](../install.conf.sample) — the authoritative default harness mapping —
-as of 2026-07-21. When this table and a `SKILL.md` disagree, the `SKILL.md` wins and the
-disagreement is a bug in this page (see [Keeping this page honest](#keeping-this-page-honest)).
+This index lists each skill's purpose, lifecycle, default installation roots, side effects, and
+prerequisites. It reflects `SKILL.md` frontmatter and
+[`../install.conf.sample`](../install.conf.sample) as of 2026-07-21. If they disagree with this
+table, update the table. See [Keeping this page synchronized](#keeping-this-page-synchronized).
 
 ## Matrix
 
@@ -42,10 +39,10 @@ skill's `SKILL.md`.
 
 ### Lifecycle
 
-How much to trust the skill today. These labels come from the status notes in
-[`../README.md`](../README.md) and from frontmatter, as of 2026-07-21:
+Current maintenance status. These labels do not endorse a skill or claim that it suits another
+environment:
 
-- **Active** — maintained and recommended for its stated use.
+- **Active** — still used or maintained by the author.
 - **Historical** — kept for reference but not recommended; may be superseded, narrow, or tied to a
   workflow the maintainer no longer uses. `s3-troubleshooting` additionally carries a
   "may contain incorrect or unsafe instructions" warning in `../README.md`.
@@ -119,12 +116,11 @@ ls -l ~/.claude/skills/<skill-name>          # should be a symlink into this rep
 The matrix tells you a skill *could* apply; the linked page and the prerequisite check tell you
 whether it applies *here, now*.
 
-## Keeping this page honest
+## Keeping this page synchronized
 
-This page duplicates two authoritative sources — each `*/SKILL.md` frontmatter and
-[`../install.conf.sample`](../install.conf.sample) — so it can drift out of agreement with them.
-The rule: **a skill added, renamed, retired, or remapped without updating the matching row here is
-an incomplete change and fails review.** Specifically:
+This page duplicates each `*/SKILL.md` frontmatter and
+[`../install.conf.sample`](../install.conf.sample), so it can drift. A skill added, renamed,
+retired, or remapped without a matching row update is incomplete. Specifically:
 
 - The set of rows must equal the set of skill directories (one `SKILL.md` each). No orphan rows, no
   missing skills.

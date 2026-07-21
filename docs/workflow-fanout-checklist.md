@@ -1,18 +1,15 @@
 # workflow-fanout-checklist
 
-Gates a Claude Code ultracode / `Workflow` script through an approval checklist before it runs, so
-that an `agent()` call which silently inherits the main session's (expensive) model gets caught
-before launch rather than discovered on the bill.
+Gates a Claude Code ultracode / `Workflow` script through an approval checklist before launch, so
+an `agent()` call that silently inherits the main session's expensive model is caught first.
 
 ## Summary
 
-A `Workflow` script decides how many agents run and on which model, but the approval dialog only
-shows what the script declares. An `agent()` call that omits `model` inherits the main session's
-model — a script that reads like cheap parallel reader work can quietly bill many agents at the
-main session's rate, with nothing in the dialog surfacing that. This skill supplies a checklist
-(`references/approval-checklist.md`) and a two-step process: the author writes a fan-out
-justification, then a separate, explicitly cheaper-model agent verifies the script against the
-checklist before the main session presents it to the user for approval.
+A `Workflow` approval dialog shows only declared configuration. An `agent()` call without `model`
+inherits the main session's model, so apparent cheap parallel work can bill many agents at that
+rate. The author provides a fan-out justification, then a separate, cheaper-model agent verifies
+the script against [`references/approval-checklist.md`](../workflow-fanout-checklist/references/approval-checklist.md)
+before user approval.
 
 ## Status
 
@@ -23,14 +20,10 @@ Active. Default harness mapping, quoted from
 workflow-fanout-checklist claude
 ```
 
-Claude Code only — the skill's own text (mandatory checklist item, procedure step 3) is framed
-entirely around Claude Code's `Workflow` scripts, `agent()` calls, and `meta.phases`, which are
-Claude-Code-specific constructs. It has no Codex or cross-harness applicability documented.
+Claude Code only: `Workflow`, `agent()`, and `meta.phases` are Claude Code constructs.
 
-This skill is meant to be model-triggered: the description frontmatter is written to fire
-proactively ("whenever a task is about to fan out into subagents, and before answering 'should
-this be a workflow at all?'") rather than requiring an explicit user invocation, though a user can
-also invoke it directly when preparing or reviewing a workflow script.
+The description frontmatter triggers it before fan-out or when deciding whether a workflow is
+appropriate. It can also be explicitly invoked when preparing or reviewing a workflow script.
 
 ## Triggers
 
@@ -41,10 +34,9 @@ Per the `description` frontmatter, the skill should be used when:
 - a task is about to fan out into subagents, or
 - deciding "should this be a workflow at all?"
 
-Explicitly out of scope (see "When to skip" in `SKILL.md`): a single `agent()` call for a bounded
-lookup is ordinary delegation, not fan-out, and does not require this checklist. The skill applies
-when a `Workflow` script is involved, or when a fan-out is large enough that model choice is a
-real cost decision.
+A single `agent()` call for a bounded lookup is ordinary delegation, not fan-out; see "When to
+skip" in `SKILL.md`. Use this skill for `Workflow` scripts or fan-out where model choice is a real
+cost decision.
 
 ## Prerequisites
 
@@ -59,12 +51,10 @@ real cost decision.
 - **Reads:** `references/approval-checklist.md` (the skill's own file — must not be paraphrased
   into the verifier's prompt, per `SKILL.md` step 1) and the proposed workflow script (saved to a
   file before verification, per step 3).
-- **Writes:** none, to the repository or filesystem. The skill's output is a verdict and a
-  justification paragraph, not file mutation.
+- **Writes:** none. Output is a verdict and justification paragraph.
 - **External/human-facing actions:** the skill's entire purpose is a human-approval gate — step 5
-  requires presenting the verifier's verdict, the justification paragraph, and any advisory flags
-  to the user and asking for approval before the workflow script runs. No workflow script this
-  skill governs should execute without that explicit user approval.
+  requires presenting the verifier's verdict, justification, and advisory flags to the user before
+  the workflow script runs.
 - **Mutating actions needing explicit approval:** running the `Workflow` script itself is the
   consequential action being gated; the skill does not run it (the verifier prompt explicitly says
   "Do not run it"). A run budget/no-progress rule is advisory (not mandatory) but is framed as its
@@ -77,16 +67,14 @@ real cost decision.
    the author and the verifier.
 2. Write the script and, in the same approval-request message, its justification: lane, model
    choice, agent count, concurrency, stop condition, and why fan-out beats a single cheaper agent
-   or the main session. If that paragraph cannot be written honestly, the answer is to skip the
-   workflow and do the work inline.
+   or the main session. If it cannot be written honestly, do the work inline.
 3. Save the script to a file, then launch an independent verifier agent — a separate agent
    instance, with `model` explicitly pinned to something cheaper than the model that authored the
    script. The verifier reads the checklist and the script, gives PASS/FAIL per mandatory item with
    quoted evidence, enumerates every `agent()` call and `meta.phases` entry with its declared model,
    lists advisory flags, and returns APPROVE or REJECT. The verifier does not fix or run the script.
-4. The main agent reviews the verdict and decides. A PASS without visible quoted evidence should
-   not be accepted; a FAIL should not be overruled by the main agent's own re-read — instead fix the
-   script and re-verify (see Limitations for what "re-verify" does and does not require).
+4. Review the verdict. Do not accept PASS without visible quoted evidence. Do not overrule FAIL by
+   re-reading: fix the script and re-verify (see Limitations).
 5. Present the user with the verifier's verdict, the justification paragraph, and any advisory
    flags with reasoning, then ask for approval. Advisory flags do not block; they inform consent.
 
@@ -110,9 +98,8 @@ a no-progress stop rule.
 
 ## Bundled resources
 
-- `SKILL.md` — the procedure described above (5 steps) plus the verifier prompt template and the
-  "when to skip" scope note. No `scripts/` or `agents/` directory is bundled; the skill is
-  process-only, no executable helper exists to run or check for.
+- `SKILL.md` — the five-step procedure, verifier prompt template, and "when to skip" scope note.
+  No `scripts/` or `agents/` directory is bundled.
 - `references/approval-checklist.md` — the mandatory/advisory checklist itself, plus a "failure
   this exists to catch" section with two illustrated past incidents that motivated the mandatory
   model-declaration and parent-facing-return items.
@@ -121,9 +108,8 @@ a no-progress stop rule.
 
 - Claude Code only; the checklist's language (`agent()`, `meta.phases`, `Workflow`) does not map to
   other harnesses' delegation mechanisms.
-- The skill does not itself detect or enforce anything — it is a documented procedure the main
-  agent must choose to follow. There is no automated check that a `Workflow` script was actually
-  routed through this skill before running.
+- The skill does not automatically detect or enforce use; no check confirms a `Workflow` script
+  passed through it before running.
 - "Re-verify" after a fix is not spelled out with more precision than "fix the script and
   re-verify" (step 4) — whether that means re-running the full verifier prompt or a lighter check
   is left to the operator's judgment.
@@ -135,22 +121,16 @@ a no-progress stop rule.
 ## Compatibility and version notes
 
 As of 2026-07-21, this page is checked against `workflow-fanout-checklist/SKILL.md` and
-`workflow-fanout-checklist/references/approval-checklist.md` in this repository. The `agent()`
-call syntax, `meta.phases` structure, and Claude Code model-tier names used as examples (Fable,
-Opus, Sonnet) are specific to the Claude Code `Workflow` feature as it exists at that date and are
-expected to change as the feature evolves. Treat
+`workflow-fanout-checklist/references/approval-checklist.md`. `agent()` syntax, `meta.phases`, and
+example model tiers (Fable, Opus, Sonnet) are version-specific. Treat
 [`../workflow-fanout-checklist/references/approval-checklist.md`](../workflow-fanout-checklist/references/approval-checklist.md)
 and [`../workflow-fanout-checklist/SKILL.md`](../workflow-fanout-checklist/SKILL.md) as the
-canonical, currently-accurate source for exact syntax and model-tier names; this page summarizes
-but does not redefine them.
+canonical source for exact syntax and model-tier names.
 
 ## Verification status
 
-Manually verified by reading `SKILL.md` and `references/approval-checklist.md` in full against
-this page's claims. No automated test, eval, or CI check for this skill was found in the
-repository at the time of writing. The skill's own procedure includes a self-check (independent
-verifier agent reviewing a script against the checklist), but that applies to workflow scripts the
-skill governs, not to the skill's own documentation or behavior.
+Checked against `SKILL.md` and `references/approval-checklist.md`. No automated test, eval, or CI
+check was found. The independent verifier checks governed workflow scripts, not this documentation.
 
 ## Example
 

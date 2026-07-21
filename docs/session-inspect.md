@@ -1,13 +1,13 @@
 # session-inspect
 
-`session-inspect` is a bundled, read-only Python inspector that summarizes and compares local Codex
-rollout and Claude Code JSONL session transcripts without any network access and without writing to
-the transcripts. It extracts a compact picture of a past coding-agent session — model and effort,
+`session-inspect` is a read-only Python inspector for local Codex rollout and Claude Code JSONL
+session transcripts. It requires no network access and does not write to transcripts. It extracts
+model and effort,
 duration, compaction count, token usage (direct, child, inclusive, and per-model), input/output and
 cache breakdowns, tool and command activity, files and skills read, child-session lineage, and
-Codex delegation provenance — so an agent can reason about a session without loading the raw
-transcript into context. All figures are heuristic measurements derived from evolving on-disk
-artifact formats; they are not billing-authoritative (see [Limitations](#limitations)).
+Codex delegation provenance without loading the raw transcript into context. All figures are
+heuristic measurements from evolving on-disk formats, not billing-authoritative (see
+[Limitations](#limitations)).
 
 ## Status
 
@@ -18,14 +18,13 @@ Active. Its default harness mapping in
 session-inspect         claude codex agents
 ```
 
-That is, it is linked into all three roots by default: Claude Code (`~/.claude/skills`), Codex
-(`~/.codex/skills`), and the neutral shared root (`~/.agents/skills`). The neutral installation is
-what lets the SKILL.md reference the script through a harness-independent path.
+It is linked by default into Claude Code (`~/.claude/skills`), Codex (`~/.codex/skills`), and the
+neutral shared root (`~/.agents/skills`). The neutral installation gives the SKILL.md a
+harness-independent script path.
 
-It is both model-triggered and user-invoked: the `description` frontmatter is written so a model
-reaches for it automatically when a session summary or diff is needed, and a user can also invoke it
-directly (the bundled Codex `agents/openai.yaml` supplies a `default_prompt`). It is a skill wrapping
-a CLI, not an interactive agent.
+The `description` frontmatter triggers it for session summaries and diffs; users can invoke it
+directly through the bundled Codex `agents/openai.yaml` `default_prompt`. It wraps a CLI, not an
+interactive agent.
 
 ## Triggers
 
@@ -41,8 +40,8 @@ when an agent needs any of the following from a *past* local coding-agent sessio
 - session metadata; or
 - a compact diff between two past sessions.
 
-The stated boundary is "without network access or transcript writes" — it is for inspecting
-existing local artifacts, not for capturing, exporting, or mutating them.
+It inspects existing local artifacts without network access or transcript writes; it does not
+capture, export, or mutate them.
 
 ## Prerequisites
 
@@ -65,13 +64,12 @@ existing local artifacts, not for capturing, exporting, or mutating them.
 `~/.codex/config.toml` — all for reading. It has no export, copy, snapshot, or mutation code and
 makes no model calls.
 
-**Writes nothing** to transcripts or anywhere else; output goes to stdout (and diagnostics to
-stderr). The SKILL.md instructs that inspection must not be combined with export, copy, snapshot, or
-mutation steps unless the user explicitly requests a separate write operation.
+**Writes nothing**; output goes to stdout and diagnostics to stderr. The SKILL.md keeps inspection
+separate from export, copy, snapshot, and mutation steps unless the user explicitly requests a
+separate write operation.
 
-**Human-facing / external:** the printed summary is the only output. Nothing is sent anywhere. No
-action requires approval because the tool cannot modify state; the relevant caution is a privacy
-one, not a mutation one.
+**Human-facing / external:** the printed summary is the only output. Nothing is sent anywhere; the
+relevant caution is privacy, not mutation.
 
 ### Privacy
 
@@ -86,31 +84,26 @@ sensitive strings that live in the source transcripts. Depending on the mode, th
 - session IDs and parent/child session IDs; and
 - child transcript data pulled in from nested subagent and `codex-runner` sessions.
 
-Review verbose, `--all`, `--full-commands`, or `--json` output before sharing it. To minimize
-exposure, inspect an explicit transcript path or point the root options at a temporary or archival
-directory rather than the live session roots (see [Compatibility](#compatibility-and-version-notes)
-for the environment variables).
+Review verbose, `--all`, `--full-commands`, and `--json` output before sharing. To reduce exposure,
+inspect an explicit transcript path or point root options at a temporary or archival directory
+rather than live session roots (see [Compatibility](#compatibility-and-version-notes)).
 
 ## Typical workflow
 
-1. Start with the default compact summary of one session. Present it in the form most useful for the
-   context — verbatim when raw output is requested, or reformatted into a short explanation or table
-   when interpretation helps — while preserving reported values and distinguishing script output
-   from any added interpretation.
+1. Start with one session's compact summary. Preserve reported values and distinguish script output
+   from interpretation; present raw output verbatim when requested or reformat it when useful.
 2. Add `--insights` when deterministic diagnostics (child-token share, cache-read ratio,
    unresolved-child impact, unavailable counters, Codex snapshot stability) would help. These are
    mechanical observations; label any causal interpretation you add separately.
-3. Escalate to `--verbose` only when capped per-model detail and command/read/skill lists are
-   needed, and to `--all` (or `--full-commands`) only when caps or command truncation are actually
-   getting in the way.
+3. Use `--verbose` for capped per-model detail and command/read/skill lists; use `--all` or
+   `--full-commands` only when caps or command truncation matter.
 4. Use `diff` to compare two past sessions when the question is about what changed between them.
-5. Reserve `--json` for structured downstream processing, and filter it (for example with `jq`)
-   before returning it to model context rather than requesting it for presentation.
+5. Use `--json` for structured downstream processing and filter it (for example with `jq`) before
+   returning it to model context.
 
 ### Command and option reference
 
-Invoke the bundled script directly. Through the neutral installation the path is stable across
-harnesses:
+Invoke the bundled script directly. The neutral installation provides a stable cross-harness path:
 
 ```bash
 INSPECT="$HOME/.agents/skills/session-inspect/scripts/session_inspect.py"
@@ -151,8 +144,8 @@ If a bare target matches more than one session, or matches none, resolution fail
 | `--max-items N` | Cap list length (default 10); must be ≥ 1. |
 | `--command-chars N` | Truncate flattened commands to N chars (default 200); must be ≥ 20. |
 
-**How verbosity, `--all`, and `--full-commands` interact.** Compact (no flags) prints a four-line
-core summary plus optional lines for children, skipped invalid JSON, and token-snapshot regressions.
+**How verbosity, `--all`, and `--full-commands` interact.** Compact output prints a four-line
+summary plus optional lines for children, skipped invalid JSON, and token-snapshot regressions.
 `--verbose` switches to the detailed renderer with lists and per-model tables, still capped at
 `--max-items` and with commands flattened and truncated to `--command-chars`. `--all` implies
 verbose and lifts the caps. `--full-commands` is orthogonal: it stops command flattening/truncation
@@ -168,8 +161,8 @@ is set.
 **JSON behavior.** `--json` prints the result dict with `sort_keys=True` and two-space indentation.
 For `inspect`, it keeps the same **capped** schema as text output unless combined with `--all`;
 `--insights` adds an `insights` key. For `diff`, `--json` emits the raw, uncapped diff structure
-regardless of `--all` or `--max-items`. The SKILL.md and reference both recommend filtering JSON at the command boundary
-before it enters model context rather than dumping the full structure.
+regardless of `--all` or `--max-items`. Filter JSON at the command boundary before it enters model
+context rather than dumping the full structure.
 
 ### Exit codes and errors
 
@@ -227,8 +220,8 @@ exit 0.
   heredoc bodies are stripped, and unusual command shapes may be missed. Skills are additionally
   inferred from any read path ending in `SKILL.md`.
 - **Parser limits tied to evolving formats.** The parser depends on current Codex and Claude Code
-  artifact schemas (record types, field names, delegation layout) and will need updates as those
-  harnesses change. Invalid JSON lines are counted and skipped rather than aborting the run.
+  artifact schemas (record types, field names, delegation layout) and needs updates as those
+  harnesses change. Invalid JSON lines are counted and skipped.
 - **Neutral-path assumption.** The documented invocation path resolves only where the skill is
   installed to the `~/.agents/skills` root; a machine whose local `install.conf` drops `agents`
   would need a harness-specific path instead.
@@ -248,16 +241,15 @@ Version-sensitive facts, current **as of 2026-07-21**:
   `~/.codex` (config home). Override with `--codex-root` / `--claude-root` / `--codex-home`, or the
   environment variables `SESSION_INSPECT_CODEX_ROOT`, `SESSION_INSPECT_CLAUDE_ROOT`, and
   `CODEX_HOME`.
-- **Default caps.** `--max-items` defaults to 10 and `--command-chars` to 200; these are the values
-  future readers should confirm against `build_parser` if the CLI changes.
+- **Default caps.** `--max-items` defaults to 10 and `--command-chars` to 200; confirm them against
+  `build_parser` if the CLI changes.
 - **Python floor.** The config-fallback path needs `tomllib` (Python 3.11+); on older interpreters
   config-derived model/effort degrades to unavailable.
 
 ## Example
 
-The following is an **illustrative** compact summary with placeholder data — not a real capture. It
-shows the shape of default output (header line; direct/child/inclusive tokens; input/output cache
-breakdown; activity; a child-lineage line when lineage exists):
+This **illustrative** compact summary uses placeholder data. It shows default output: header,
+direct/child/inclusive tokens, input/output cache breakdown, activity, and child lineage.
 
 ```text
 codex <session-id> | <model>/<effort> | 1h04m | compactions=1
@@ -269,8 +261,8 @@ children resolved=0 (native=0 shell=0) unresolved=0
 
 ### Real comparison against `ccusage`
 
-These outputs were captured concurrently from an actual long Codex session. The `session-inspect`
-session ID and the identifying fields from the matching `ccusage` record were omitted.
+These outputs were captured concurrently from a long Codex session. The `session-inspect` session
+ID and identifying fields from the matching `ccusage` record were omitted.
 
 `session-inspect` compact output:
 
@@ -317,15 +309,12 @@ their snapshot and child-session aggregation rules are not interchangeable.
 
 ## Verification status
 
-- **Automated.** The bundled `tests/test_session_inspect.py` suite contains 22 tests. They run
-  entirely on **synthetic fixtures** constructed in-test (JSONL records written to temporary
-  directories) — no real session transcripts are used — so they exercise the parser, resolver,
-  renderers, diff, and delegation logic against controlled inputs, not against live artifact
-  variety in the wild.
-- **Manually verified.** The command/option semantics, exit-code behavior, and default values in
-  this page were read directly from `scripts/session_inspect.py`; the format and safety claims come
-  from `references/formats.md` and the SKILL.md.
-- **Untested here.** Behavior against real, current Codex/Claude artifacts is not covered by the
-  synthetic suite and depends on those formats matching the parser's expectations; the
-  `session-inspect` vs `ccusage` divergence shown above is the documented reminder that live
-  numbers are tool-specific.
+- **Automated.** The bundled `tests/test_session_inspect.py` suite contains 22 tests using
+  **synthetic fixtures** written to temporary directories. It exercises parser, resolver, renderer,
+  diff, and delegation logic against controlled inputs, not real artifact variety.
+- **Manually verified.** Command and option semantics, exit codes, and defaults were read from
+  `scripts/session_inspect.py`; format and safety claims come from `references/formats.md` and the
+  SKILL.md.
+- **Untested here.** The synthetic suite does not cover real, current Codex/Claude artifacts.
+  Results depend on those formats matching parser expectations; the comparison above shows that
+  live token figures are tool-specific.

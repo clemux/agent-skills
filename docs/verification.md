@@ -1,9 +1,8 @@
 # Verification
 
-This page lists every automated check that exists in this repository as of 2026-07-21: the exact
-command to run each one, what it covers, and what it does not. It closes with an honest gap
-statement — most skill packages have no automated coverage at all, and their `SKILL.md` guidance
-is verified only by use, not by a test suite.
+This page lists the automated checks in this repository as of 2026-07-21: their commands,
+coverage, and limits. Most skill packages have no automated coverage; their `SKILL.md` guidance is
+verified by use, not a test suite.
 
 ## Publication boundary check
 
@@ -49,9 +48,8 @@ tree: every rule fires on a constructed sample, an allowlist exception suppresse
 `(path, rule)` pair, a stale exception is reported, a local-only exception is not flagged stale
 when local rules are inactive, and a missing local config file yields no local rules.
 
-**What it does not cover**: whether the *current* tracked tree passes — that's the job of running
-the checker script itself, above. These tests only confirm the checker's matching and
-allowlist/staleness logic behaves as designed.
+**What it does not cover**: whether the current tracked tree passes; run the checker above for
+that. These tests cover matching and allowlist/staleness logic only.
 
 The same command also runs as the pre-commit hook `publication-boundary-tests`, pinned to
 `test_publication_boundary.py` specifically (see
@@ -73,9 +71,9 @@ token-count events) and constructed Claude Code transcript records. Fixtures are
 test file itself, not captured from real sessions.
 
 **What it does not cover**: there is no fixture corpus of real Codex or Claude Code session files,
-so format drift in the actual harnesses (new event types, changed field names) is only caught if
-someone updates the fixtures to match, or in practice — i.e., the parser breaking against a real
-transcript. It also does not test the CLI argument-parsing surface or terminal output formatting
+so format drift in the actual harnesses (new event types, changed field names) is caught only when
+fixtures are updated or the parser breaks against a real transcript. It also does not test CLI
+argument parsing or terminal formatting
 end-to-end; it calls the module's internal functions and inspects their return values or captured
 stdout for specific inserted assertions, not a full command-line invocation in every mode
 (`--insights`, `--json`, `diff`, etc. are each covered only insofar as individual tests target
@@ -112,11 +110,10 @@ checks staged files.
 ```
 
 Reads the machine-local `install.conf` manifest (see
-[`../install.conf.sample`](../install.conf.sample)) and reports, without writing anything, what
-each skill's symlink state is: correctly linked, would-be-linked, would-be-removed, or — most
-importantly — a **detached copy**: a real directory or file sitting at a harness path instead of a
-symlink back into this repo. Detached copies are the drift condition [AGENTS.md](../AGENTS.md)
-exists to prevent.
+[`../install.conf.sample`](../install.conf.sample)) and reports each skill's symlink state without
+writing: correctly linked, would-be linked, would-be removed, or a **detached copy** — a real file
+or directory at a harness path instead of a symlink into this repo. Detached copies cause the drift
+that [AGENTS.md](../AGENTS.md) addresses.
 
 **What it does not cover**: it requires a local `install.conf` to exist (copied from
 `install.conf.sample` and edited per machine) and inspects only the current machine's harness
@@ -126,14 +123,12 @@ diagnostic.
 
 ## What "verified" means for claims on this docs site
 
-A behavior statement on any page in `docs/` is "verified" when it was checked directly against a
-primary source — the relevant `SKILL.md`, a bundled script, a test file, or a config file such as
-`install.conf.sample` or `.pre-commit-config.yaml` — by an agent reading that source, dated to
-2026-07-21. It does not mean the behavior was exercised end-to-end by running the skill in a live
-harness. Where a docs page could not confirm a claim against a source, it says so explicitly
-("unverified") rather than repeating it as fact. Where sources disagreed with each other, the
-higher-fidelity source — code and test files over prose such as [`../README.md`](../README.md) —
-was preferred, and the disagreement is noted on the relevant page.
+A `docs/` behavior statement is "verified" when an agent checked it against a primary source — the
+relevant `SKILL.md`, bundled script, test, or configuration such as `install.conf.sample` or
+`.pre-commit-config.yaml` — as of 2026-07-21. It does not mean the behavior was exercised in a
+live harness. Claims without source confirmation are marked "unverified". When sources disagree,
+code and tests take precedence over prose such as [`../README.md`](../README.md), and the relevant
+page notes the disagreement.
 
 ## Coverage gap: most skills have no automated tests
 
@@ -153,13 +148,10 @@ Every other skill package in this repository — including `braindump-intake`, `
 own. See [`../install.conf.sample`](../install.conf.sample) for the full skill list and
 [skills.md](skills.md) for what each one does.
 
-For these skills, `SKILL.md` is prescriptive guidance for an agent to follow, not code with a
-test suite behind it. The `pytest-profiling` scripts (`../pytest-profiling/scripts/`) are shell
-and Python tooling that shellcheck lints syntactically (see above) but that has no unit or
-integration tests of its own. Whether the guidance in an untested `SKILL.md` produces correct
-agent behavior is verified only by using the skill and observing the outcome — there is no
-command that checks it mechanically. Treat instructions in an untested skill package as unverified
-in the sense used on this page: read from source, not exercised by a test.
+For these skills, `SKILL.md` is agent guidance, not tested code. The `pytest-profiling` scripts
+(`../pytest-profiling/scripts/`) receive shellcheck's syntax analysis but have no unit or
+integration tests. No command mechanically verifies that an untested skill produces correct agent
+behavior; its instructions are source-read, not test-exercised.
 
 ## Example: running everything locally
 
@@ -184,6 +176,5 @@ pre-commit run shellcheck --all-files
 ./install.sh --dry-run
 ```
 
-A clean run of 1–4 plus no detached copies in 5 is the full extent of what "checks pass" means in
-this repository. It does not mean every `SKILL.md` in `<skill-name>/SKILL.md` has been exercised —
-see the coverage gap above.
+Passing 1–4 with no detached copies in 5 is the repository's available automated and linkage
+coverage. It does not mean every `<skill-name>/SKILL.md` has been exercised.

@@ -13,9 +13,8 @@ Historical; not recommended. It is not mapped to any harness in
 plan-mode-tdd           none
 ```
 
-The skill package is retained in the repository for reference — as a record of the pattern and of
-why it does not work unmodified — not as an executable workflow. See
-[skills.md](skills.md) for the current, mapped skill set.
+The package is retained as a record of the pattern and its limitations, not as an executable
+workflow. See [skills.md](skills.md) for current mapped skills.
 
 ## Why it was retired
 
@@ -48,7 +47,7 @@ risks:
 
 ## Migration / replacement
 
-No direct replacement exists in this repository. A safe successor would need to:
+No direct replacement exists. A successor would need to:
 
 - Either bundle or explicitly declare a dependency on a concrete, available review step (agent,
   skill, or manual instruction) rather than naming an unbundled agent by name, and degrade
@@ -67,9 +66,8 @@ display name, short description, and default prompt but no evidence of use or te
 
 ## Example (illustrative only)
 
-The transcript below is a constructed illustration of the intended shape of a Plan-mode output
-under this skill, using placeholder data. It was not captured from a real session and step 4 is
-shown exactly as the skill specifies it, including the unresolved agent reference.
+Constructed Plan-mode output using placeholder data. It is not from a real session; step 4 retains
+the unresolved agent reference from the skill.
 
 ```text
 Plan for: add input validation to <endpoint-name>
