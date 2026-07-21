@@ -96,8 +96,9 @@ identifier to stand in for a real write.
 
 ### One-shot vs guided flows
 
-- **Guided** (the interactive default) reviews one scope-changing decision question at a time per
-  item before confirming it.
+- **Guided** reviews one scope-changing decision question at a time per item before confirming
+  it. Neither mode is a standing default: the skill asks which to use unless the user already
+  chose one.
 - **Quick** confirms a short name and one-sentence outcome per item, without a decision question.
 - **One-shot** is a variant reachable from either mode: when the user cannot or will not answer
   questions ("no questions, just process this"), the agent falls back to Quick mode and treats the

@@ -2,7 +2,8 @@
 
 Guidance for using `git-worktree-runner` (the `git gtr` subcommand) as the preferred interface for
 creating, entering, launching tools in, inspecting, and cleaning up Git worktrees, with a fallback
-to plain `git worktree` when the tool is unavailable or the user prefers it.
+to plain `git worktree` only when `git gtr` is missing or errors before reading repository
+configuration, and only with the user's approval.
 
 ## Status
 

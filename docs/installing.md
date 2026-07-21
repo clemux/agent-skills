@@ -28,9 +28,10 @@ diverge, and nothing would tell you which version a given harness was actually r
 they disagreed at all. A symlink holds no content of its own, so there is nothing to diverge — the
 repo file is the only file, and `git status` in the repo reflects everything every harness sees.
 
-Because of this, `install.sh` treats anything it finds at a target path that is *not* a symlink
-back into the repo as a **detached copy** — content that may hold real edits nobody brought back
-into the repo — and refuses to touch it without `--force` (see below).
+Because of this, `install.sh` treats any **real file or directory** it finds at a target path as
+a **detached copy** — content that may hold real edits nobody brought back into the repo — and
+refuses to touch it without `--force` (see below). A symlink that points outside the repo is mere
+drift, not a copy: it holds no content, so it is removed and relinked without `--force`.
 
 ## The manifest: `install.conf`
 

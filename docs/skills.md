@@ -105,7 +105,9 @@ Illustrative, using placeholder data. To go from a matrix row to a working invoc
 ```bash
 # 1. Confirm the skill is actually linked into this harness on this machine
 #    (the matrix shows the DEFAULT; install.conf is what this machine did).
-./install.sh --dry-run | grep '<skill-name>'
+#    A correctly linked skill prints nothing in the dry run, so check the link directly:
+ls -l ~/.claude/skills/<skill-name>          # should be a symlink into this repo
+./install.sh --dry-run                       # would report anything broken or drifted
 
 # 2. Check the prerequisite named in the row is present, e.g. a CLI:
 <prereq-cli> --version

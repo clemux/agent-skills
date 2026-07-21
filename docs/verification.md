@@ -22,8 +22,9 @@ longer match anything (stale exceptions) or that name an untracked path.
 
 Exit code `0` means no violations and no stale exceptions; `1` means violations or stale
 allowlist entries were found (printed one per line); `2` means the allowlist or local config
-itself is malformed (missing, invalid JSON, wrong shape, glob syntax in a path, duplicate
-exception, or unknown rule name). See [AGENTS.md](../AGENTS.md) for the publication-boundary
+itself is unusable (a missing or invalid-JSON allowlist, wrong shape, glob syntax in a path,
+duplicate exception, or unknown rule name). A *missing* `.publication-boundary-local.json` is not
+an error — it simply disables the local rules. See [AGENTS.md](../AGENTS.md) for the publication-boundary
 policy this check enforces, and [`../.publication-boundary-allowlist.json`](../.publication-boundary-allowlist.json)
 for the current reviewed exceptions.
 

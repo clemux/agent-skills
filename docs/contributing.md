@@ -97,9 +97,10 @@ A rename touches every place the old name appears, because the directory name is
 1. Rename the skill directory and update the `name` frontmatter in `SKILL.md` to match.
 2. Update the entry in [`install.conf.sample`](../install.conf.sample) and your local
    `install.conf`.
-3. Run `./install.sh` so the old symlink is removed and the new one is created. `install.sh`
-   removes symlinks for skills a root no longer targets, so the stale link is cleaned up in the same
-   run. See [installing.md](installing.md).
+3. Run `./install.sh` to create the new symlink, then remove the old-name symlink from each
+   harness root yourself (for example `rm ~/.claude/skills/<old-name>`). `install.sh` only visits
+   skill directories that currently exist, so it never sees the old name and cannot clean up its
+   stale link. See [installing.md](installing.md).
 4. Update the [`README.md`](../README.md) row.
 5. Rename `docs/<old-name>.md` to `docs/<new-name>.md` and update its `../<old-name>/…` links.
 6. Update the [`skills.md`](skills.md) row and any docs-relative links pointing at the old page

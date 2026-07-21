@@ -6,7 +6,7 @@ how to structure a prompt it is about to send to Codex or another GPT-5.6-based 
 example `gpt-5.6-sol`). It does not invoke Codex, run any command, or execute a prompt itself —
 composing the prompt text is the entire deliverable, and sending it is left to whatever the caller
 already uses to reach Codex (a built-in `review`/`adversarial-review` command, a `task` invocation,
-or a plugin such as `codex:rescue`).
+or a plugin agent such as `codex:codex-rescue`).
 
 ## Status
 

@@ -156,7 +156,9 @@ core summary plus optional lines for children, skipped invalid JSON, and token-s
 `--verbose` switches to the detailed renderer with lists and per-model tables, still capped at
 `--max-items` and with commands flattened and truncated to `--command-chars`. `--all` implies
 verbose and lifts the caps. `--full-commands` is orthogonal: it stops command flattening/truncation
-so exact bodies (including newlines) are shown, in whichever renderer is active.
+so exact bodies (including newlines) are shown — wherever command bodies are rendered at all,
+which means verbose/`--all` output (and `inspect --json`); the compact renderers print no command
+bodies for it to affect.
 
 **Output caps.** List fields (commands, read paths, skills, delegations, child sessions, unresolved
 children) are truncated to `--max-items` unless `--all` is given; omitted counts are reported so you
@@ -164,8 +166,9 @@ know to rerun with `--all`. Command text is truncated to `--command-chars` unles
 is set.
 
 **JSON behavior.** `--json` prints the result dict with `sort_keys=True` and two-space indentation.
-It keeps the same **capped** schema as text output unless combined with `--all`; `--insights` adds an
-`insights` key. The SKILL.md and reference both recommend filtering JSON at the command boundary
+For `inspect`, it keeps the same **capped** schema as text output unless combined with `--all`;
+`--insights` adds an `insights` key. For `diff`, `--json` emits the raw, uncapped diff structure
+regardless of `--all` or `--max-items`. The SKILL.md and reference both recommend filtering JSON at the command boundary
 before it enters model context rather than dumping the full structure.
 
 ### Exit codes and errors

@@ -94,11 +94,13 @@ real cost decision.
 
 Full text: [`../workflow-fanout-checklist/references/approval-checklist.md`](../workflow-fanout-checklist/references/approval-checklist.md).
 
-Mandatory (any failure rejects the script): model declaration on every `agent()` call, a review
-surface where every `meta.phases` entry declares a model matching what its `agent()` calls
-actually use, the fan-out justification paragraph, independent verification by a separate
-cheaper-pinned agent, and a parent-facing return that carries only what the parent acts on (counts,
-final synthesis, artifact paths/IDs — not bulk per-item results).
+Mandatory (any failure rejects the script): model declaration on every `agent()` call (a
+deliberate inherit passes only with a comment on the call saying so and why), a review surface
+where every `meta.phases` entry declares a model matching what its `agent()` calls actually use,
+the fan-out justification paragraph, independent verification by a separate cheaper-pinned agent,
+and a parent-facing return that carries only what the parent acts on (counts, final synthesis,
+artifact paths/IDs — bulk per-item results pass only with a comment on the return saying why the
+parent needs them).
 
 Advisory (flagged with a reason, does not block): purpose is user-visible, agent count is bounded
 per-agent, concurrency isn't hiding runaway token use, output contract keeps large content out of
