@@ -37,7 +37,8 @@ Allow per-item overrides. A default mode is not permission to persist unreviewed
 
 When the user cannot or will not answer questions — a one-shot request, "no questions, just process
 this" — use Quick mode. Treat the request as confirmation only for outcomes, writes, and destinations
-it states unambiguously. Flag other ambiguities in the final report instead of persisting guesses.
+it states unambiguously. An item whose essential intent stays ambiguous ends as `Needs
+clarification`: record the open question for the final report instead of persisting a guess.
 
 Turn the dump into a numbered ledger:
 
@@ -51,11 +52,16 @@ Turn the dump into a numbered ledger:
   durable work.
 - Mirror the ledger in the agent's own plan or todo UI when available.
 
-Use these states consistently: `Pending`, `In progress`, `Confirmed`, `Persisted`, `Blocked`, and
-`Skipped`.
+Use these states consistently: `Pending`, `In progress`, `Confirmed`, `Persisted`, `Blocked`,
+`Skipped`, and `Needs clarification`.
 Intake records outcomes; it does not execute them. Reserve `Blocked` for failed writes and missing
 persistence capability — an item whose underlying work merely lacks inputs (data, access, a
 decision) is still reviewable, so confirm it and note what the work will need.
+Use `Needs clarification` when an item's essential intent cannot be confirmed and no further
+question can be asked — the request was one-shot or the user deferred the decision. It exists
+because such an item fits no other terminal state honestly: it was never confirmed, no write
+failed, and the user never declined it. Record the specific unresolved question and persist
+nothing for the item.
 Whenever the ledger is shown, label every numbered line with its own current state — a collective
 claim like "all four persisted" hides per-item drift. Keep the shown states consistent with the
 surrounding prose: an item the same reply reviews or acts on is already `In progress`, not
@@ -78,6 +84,8 @@ New items start `Pending`. Keep exactly one item `In progress` and repeat this l
    optional implementation ideas into requirements. Confirm the item's mode and essential intent
    before any write, applying the one-shot confirmation rule above when applicable. When the user
    declines to pursue an item, mark it `Skipped`, note the reason for the final report, and move on.
+   When no question can be asked and the item's essential intent stays ambiguous, mark it `Needs
+   clarification` with the specific open question and move on.
 
 3. **Route or hand off.** If persistence was not requested, mark the reviewed item `Confirmed`. If
    persistence was requested:
@@ -100,9 +108,10 @@ New items start `Pending`. Keep exactly one item `In progress` and repeat this l
 
 ## Close the intake
 
-Finish when every item is `Confirmed`, `Persisted`, `Blocked`, or `Skipped`. Report the
-final numbered ledger, persisted identifiers and outcomes, normalized handoffs, blockers, repairs,
-and skipped items. Never report a planned filename or identifier as created.
+Finish when every item is `Confirmed`, `Persisted`, `Blocked`, `Skipped`, or `Needs clarification`.
+Report the final numbered ledger, persisted identifiers and outcomes, normalized handoffs, blockers,
+repairs, skipped items, and the open question for each item needing clarification. Never report a
+planned filename or identifier as created.
 
 Read [worked-example.md](references/worked-example.md) when unsure how the interaction should flow,
 or when maintaining or forward-testing this skill. It is synthetic — never reuse its names or
